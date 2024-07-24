@@ -2,75 +2,99 @@
 include '../db/db_connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $niveau = isset($_POST['Niveau']) ? $_POST['Niveau'] : '';
-    $group_name = isset($_POST['GroupName']) ? $_POST['GroupName'] : '';
-    $filiere = isset($_POST['Filiere']) ? $_POST['Filiere'] : '';
-    $semester = isset($_POST['Semester']) ? $_POST['Semester'] : '';
-    $room_type = isset($_POST['room-type']) ? $_POST['room-type'] : '';
-    $subject_id = isset($_POST['Matier']) ? $_POST['Matier'] : '';
-    $prof_id = isset($_POST['Prof']) ? $_POST['Prof'] : '';
+    $reservation_id = isset($_POST['reservation_id']) ? $_POST['reservation_id'] : '';
     $date = isset($_POST['date_debut']) ? $_POST['date_debut'] : '';
 
-    // // Debug output
-    // echo "Niveau: $niveau<br>";
-    // echo "GroupName: $group_name<br>";
-    // echo "Filiere: $filiere<br>";
-    // echo "Semester: $semester<br>";
-    // echo "Room Type: $room_type<br>";
-    // echo "Subject ID: $subject_id<br>";
-    // echo "Professor ID: $prof_id<br>";
-    // echo "Date: $date<br>";
+    // Get reservation details
+    $stmt = $conn->prepare("SELECT * FROM reservation WHERE id = ?");
+    $stmt->bind_param("s", $reservation_id);
+    $stmt->execute();
+    $result_reservation = $stmt->get_result();
     
-    // Use IntlDateFormatter to get the day of the week in French
+    if ($result_reservation->num_rows === 0) {
+        die("Aucune réservation trouvée pour l'ID fourni.");
+    }
+    
+    $reservation = $result_reservation->fetch_assoc();
+    
+    $group_id = $reservation['group_id'];
+    $salle_id = $reservation['salle_id'];
+    $professeur_id = $reservation['professeur_id'];
+    $semester_id = $reservation['semester_id'];
+    $subject_id = $reservation['subject_id'];
+    $room_type = $reservation['type_seance'];
+
+    // Fetch group details
+    $stmt = $conn->prepare("SELECT * FROM grp WHERE id = ?");
+    $stmt->bind_param("s", $group_id);
+    $stmt->execute();
+    $group = $stmt->get_result()->fetch_assoc();
+    $group_name = $group['name'];
+    $niveau = $group['year'];
+    $filiere = $group['filiere'];
+    $group_size = $group['nombre'];
+
+    // Get the day of the week in French
     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
     $formatter->setPattern('EEEE');
-    $day_of_week = $formatter->format(strtotime($date)); 
+    $day_of_week = $formatter->format(strtotime($date));
 
-    // Get the number of students in the group
-    $sql_group = "SELECT nombre FROM grp WHERE name = '$group_name' AND year = '$niveau' AND (extra_info = '$filiere' OR filiere = '$filiere')";
-    $result_group = $conn->query($sql_group);
-    if (!$result_group) {
-        die("Erreur lors de la récupération du groupe : " . $conn->error);
-    }
-    $group = $result_group->fetch_assoc();
-    $group_size = isset($group['nombre']) ? $group['nombre'] : 0;
-    if ($room_type == 'exam' || $room_type == 'controle') {
-        $group_size = ceil($group_size / 2);
-    }
-    
-    // Debug output
-    echo "Group Size: $group_size<br>";
-
-    if ($group_size == 0) {
-        die("Le groupe spécifié n'a pas été trouvé ou la taille du groupe est invalide.");
-    }
-
+    // Fetch rooms that match the requirements
     $capacity_column = ($room_type == 'exam' || $room_type == 'controle') ? 'capacity_exam' : 'capacity';
     $sql_rooms = "SELECT id, name, $capacity_column as capacity FROM salles 
-                  WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= $group_size";
-    $result_rooms = $conn->query($sql_rooms);
+                  WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= ?";
+    $stmt = $conn->prepare($sql_rooms);
+    $stmt->bind_param("i", $group_size);
+    $stmt->execute();
+    $result_rooms = $stmt->get_result();
 
     if (!$result_rooms) {
         die("Erreur lors de la récupération des salles : " . $conn->error);
     }
-    
-    // // Debug output
-    // echo "Rooms Query: $sql_rooms<br>";
-    // echo "Rooms Found: " . $result_rooms->num_rows . "<br>";
 
+    // Fetch existing reservations for the selected day
     $sql_reservations = "SELECT salle_id, start_time, end_time FROM reservation 
-                         WHERE jour_par_semaine = '$day_of_week' 
-                         AND semester_id = '$semester' 
-                         AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= $group_size)";
-    $result_reservations = $conn->query($sql_reservations);
-
-    if (!$result_reservations) {
-        die("Erreur lors de la récupération des réservations : " . $conn->error);
-    }
+                         WHERE jour_par_semaine = ? 
+                         AND semester_id = ? 
+                         AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= ?)";
+    $stmt = $conn->prepare($sql_reservations);
+    $stmt->bind_param("sii", $day_of_week, $semester_id, $group_size);
+    $stmt->execute();
+    $result_reservations = $stmt->get_result();
 
     $reservations = [];
     while ($row = $result_reservations->fetch_assoc()) {
         $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+
+    // Fetch reservation ID from the rapport table
+    $sql_rapport = "SELECT reservation_id FROM rapport WHERE rapport_date = ?";
+    $stmt = $conn->prepare($sql_rapport);
+    $stmt->bind_param("s", $date);  // Use "s" for string (date is a string in SQL context)
+    $stmt->execute();
+    $result_rapport = $stmt->get_result();
+    
+    if ($result_rapport->num_rows > 0) {
+        $rapport = $result_rapport->fetch_assoc();
+        $rapport_reservation_id = $rapport['reservation_id'];
+        
+        // Fetch start and end times from reservation based on rapport_reservation_id
+        $sql_reservation_times = "SELECT start_time, end_time FROM reservation WHERE id = ?";
+        $stmt = $conn->prepare($sql_reservation_times);
+        $stmt->bind_param("i", $rapport_reservation_id); // Assuming rapport_id corresponds to reservation_id
+        $stmt->execute();
+        $result_reservation_times = $stmt->get_result();
+        
+        if ($result_reservation_times->num_rows > 0) {
+            $reservation_times = $result_reservation_times->fetch_assoc();
+            $priority_start_time = $reservation_times['start_time'];
+            $priority_end_time = $reservation_times['end_time'];
+        } else {
+            $priority_start_time = $priority_end_time = null;
+        }
+    } else {
+        $rapport_id = null;
+        $priority_start_time = $priority_end_time = null;
     }
 }
 
@@ -93,20 +117,35 @@ $time_slots = [
     ]
 ];
 
-function generate_html_time_slots($time_slots, $reservations, $room_id) {
+function generate_html_time_slots($time_slots, $reservations, $room_id, $priority_start_time = null, $priority_end_time = null) {
     $html = '<select class="time-slot-select" data-room-id="' . htmlspecialchars($room_id) . '">';
     foreach ($time_slots as $slot) {
         list($start_time, $end_time) = explode('-', $slot);
         $is_reserved = false;
-        if (isset($reservations[$room_id])) {
+        $is_priority = false;
+
+        // Check if this time slot is the priority time
+        if ($priority_start_time && $priority_end_time) {
+            if (strtotime($start_time) >= strtotime($priority_start_time) && strtotime($end_time) <= strtotime($priority_end_time)) {
+                $is_priority = true;
+            }
+        }
+
+        // Check if this time slot is reserved
+        if (!$is_priority && isset($reservations[$room_id])) {
             foreach ($reservations[$room_id] as $reservation) {
-                if (strtotime($start_time) >= strtotime($reservation['start']) && strtotime($start_time) < strtotime($reservation['end'])) {
+                if (strtotime($start_time) >= strtotime($reservation['start']) && strtotime($end_time) <= strtotime($reservation['end'])) {
                     $is_reserved = true;
                     break;
                 }
             }
         }
+
         $option_style = $is_reserved ? 'class="reserved"' : '';
+        if ($is_priority) {
+            $option_style = 'class="priority"';
+        }
+        
         $html .= '<option value="' . $slot . '" ' . $option_style . '>' . $slot . '</option>';
     }
     $html .= '</select>';
@@ -121,14 +160,13 @@ function generate_html_time_slots($time_slots, $reservations, $room_id) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Troisième Étape de Réservation</title>
     <link rel="stylesheet" href="../../assets/styles.css">
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
-
     <style>
         .reserved {
             background-color: gray !important;
             pointer-events: none;
             color: white;
         }
+        
     </style>
     <script>
         function updateAvailableTimes() {
@@ -212,7 +250,7 @@ function generate_html_time_slots($time_slots, $reservations, $room_id) {
                         
                         $day_key = $day_of_week == 'vendredi' ? 'Vendredi' : ($day_of_week == 'samedi' ? 'Samedi' : 'Lundi-Jeudi');
                         
-                        echo generate_html_time_slots($time_slots[$day_key], $reservations, $room['id']);
+                        echo generate_html_time_slots($time_slots[$day_key], $reservations, $room['id'], $priority_start_time, $priority_end_time);
                         
                         echo '</td>';
                         echo '</tr>';
@@ -239,15 +277,11 @@ function generate_html_time_slots($time_slots, $reservations, $room_id) {
                 <select name="selected_time" id="selected_time" class="select-spacing" required>
                 </select>
                 <br><br>
-                <input type="hidden" name="Niveau" value="<?php echo htmlspecialchars($niveau); ?>">
-                <input type="hidden" name="GroupName" value="<?php echo htmlspecialchars($group_name); ?>">
-                <input type="hidden" name="Filiere" value="<?php echo htmlspecialchars($filiere); ?>">
-                <input type="hidden" name="Semester" value="<?php echo htmlspecialchars($semester); ?>">
-                <input type="hidden" name="room-type" value="<?php echo htmlspecialchars($room_type); ?>">
-                <input type="hidden" name="Matier" value="<?php echo htmlspecialchars($subject_id); ?>">
-                <input type="hidden" name="Prof" value="<?php echo htmlspecialchars($prof_id); ?>">
-                <input type="hidden" name="date_debut" value="<?php echo htmlspecialchars($date); ?>">
+                <input type="hidden" name="reservation_id" value="<?php echo htmlspecialchars($reservation_id); ?>">
 
+
+                
+                <input type="hidden" name="date_debut" value="<?php echo htmlspecialchars($date); ?>">
                 <button type="submit">Suivant</button>
             </form>
         </div>

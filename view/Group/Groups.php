@@ -1,5 +1,5 @@
 <?php
-include 'db_connect.php';
+include '../db/db_connect.php';
 
 $edit_mode = false;
 $group = ['name' => '', 'nombre' => '', 'year' => '', 'filiere' => '', 'extra_info' => ''];
@@ -63,7 +63,9 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../../assets/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
     <script>
         function toggleSections() {
             const yearSelect = document.getElementById('year');
@@ -106,31 +108,38 @@ $conn->close();
 <body>
 <div class="sidebar">
     <div class="logo">
-        <img src="ENCG-BM_logo_header.png" width="200" alt="Logo">
+        <img src="../../image/ENCG-BM_logo_header.png" width="200" alt="Logo">
     </div>
     <ul class="nav-links">
-        <li><a href="#"><i class="icon-home"></i> Dashboard</a></li>
-        <li><a href="#"><i class="icon-students"></i> Groups</a></li>
-        <li><a href="#"><i class="icon-teachers"></i> Professeur</a></li>
+        <li><a href="../dashboard/dashboard.php"><i class="fas fa-home"></i> Tableau de bord</a></li>
+        <li><a href="../group/groups.php"><i class="fas fa-users"></i> Groupes</a></li>
+        <li><a href="../professeur/professeur.php"><i class="fas fa-chalkboard-teacher"></i> Professeurs</a></li>
+        <li><a href="../matier/matier.php"><i class="fas fa-book"></i> Matière</a></li> <!-- Changed icon to fa-book -->
         <li class="dropdown">
-            <a href="salle.html"><i class="icon-attendance"></i> Salles</a>
+            <a href="../salle/salles.php"><i class="fas fa-building"></i> Salles</a> <!-- Changed icon to fa-building -->
             <ul class="dropdown-content">
-                <li><a href="Aj_salle.php">Ajouter une salle</a></li>
-                <li><a href="Maj_salle.php">Mettre à jour les salles</a></li>
+                <li><a href="../salle/Aj_salle.php">Ajouter une salle</a></li>
+                <li><a href="../salle/Maj_salle.php">Mettre à jour les salles</a></li>
             </ul>
         </li>
-        <li><a href="salle.html"><i class="icon-attendance"></i> Reserve</a></li>
-        <li><a href="#"><i class="icon-logout"></i> Logout</a></li>
+        <li class="dropdown">
+            <a href="../reservation/Reserve.php"><i class="fas fa-calendar-check"></i> Réservation</a> <!-- Changed icon to fa-calendar-check -->
+            <ul class="dropdown-content">
+                <li><a href="../reservation/Evenement.php">Événement</a></li>
+                <li><a href="../reservation/normal.php">Cours/Exam</a></li>
+            </ul>
+        </li>
+        <li><a href="../rapport/rapports.php"><i class="fas fa-file-alt"></i> Rapport</a></li> <!-- Changed icon to fa-file-alt -->
+        <li><a href="../planning/planning.php"><i class="fas fa-calendar"></i> Planning</a></li> <!-- Changed icon to fa-calendar -->
+        <li><a href="#"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
     </ul>
 </div>
 <div class="main-content">
     <section class="attendance">
-        <h2>Today Attendance</h2>
+        <h2>Groups</h2>
         <form action="Groups.php" method="post">
             <h3><?php echo $edit_mode ? 'Edit Group' : 'Add New Group'; ?></h3>
-            <br>
-            <hr>
-            <br>
+            
             <label for="name">Nom de Group:</label>
             <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($group['name']); ?>" required>
             <label for="nombre">Nombre:</label>

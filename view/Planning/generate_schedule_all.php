@@ -1,39 +1,14 @@
 <?php
 include '../db/db_connect.php';
-
-// Retrieve form data
-$niveau = $_POST['Niveau'] ?? '';
 $semester = $_POST['Semester'] ?? '';
+$roomTypes = $_POST['room-type'] ?? [];
 
-
-
-// Check if the connection to the database is successful
-if ($conn->connect_error) {
-    die("Erreur de connexion : " . $conn->connect_error);
-}
-
+$roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
 // Fetch reservations based on the provided form data
 $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                    FROM reservation 
-                    WHERE professeur_id = ? AND semester_id = ?";
-$stmt_reservation = $conn->prepare($sql_reservation);
-if (!$stmt_reservation) {
-    die("Erreur de préparation de la requête : " . $conn->error);
-}
-$stmt_reservation->bind_param('ii', $niveau, $semester);
-$stmt_reservation->execute();
-$result_reservation = $stmt_reservation->get_result();
+                    FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
 
-// Debug: Check if the query returned results
-if (!$result_reservation) {
-    die("Erreur lors de la récupération des données de réservation : " . $conn->error);
-}
-
-
-// Check if we have any results
-if ($result_reservation->num_rows == 0) {
-    die("Aucune réservation trouvée pour les critères donnés.");
-}
+$result_reservation = $conn->query($sql_reservation);
 
 // Initialize arrays to store data
 $schedule = [];
@@ -46,11 +21,11 @@ $salle_ids = [];
 while ($row = $result_reservation->fetch_assoc()) {
     $day = strtolower($row['jour_par_semaine']);
     $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
-    $schedule[$day][$time_slot][] = [
+    $salle_id = $row['salle_id'];
+    $schedule[$day][$salle_id][$time_slot][] = [
         'group_id' => $row['group_id'],
         'subject_id' => $row['subject_id'],
         'professeur_id' => $row['professeur_id'],
-        'salle_id' => $row['salle_id'],
         'type_seance' => $row['type_seance']
     ];
 
@@ -58,10 +33,8 @@ while ($row = $result_reservation->fetch_assoc()) {
     $group_ids[] = $row['group_id'];
     $subject_ids[] = $row['subject_id'];
     $professor_ids[] = $row['professeur_id'];
-    $salle_ids[] = $row['salle_id'];
+    $salle_ids[] = $salle_id;
 }
-
-
 
 // Eliminate duplicate IDs
 $group_ids = array_unique($group_ids);
@@ -150,25 +123,43 @@ echo "<!DOCTYPE html>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Planning</title>
     <link rel='stylesheet' href='../../assets/styles.css'>
+        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
+
+    <style>
+    
+    }
+    .course {
+        margin-bottom: 10px; /* Add space between courses */
+    }
+</style>
 </head>
 <body>
 <div class='sidebar'>
     <div class='logo'>
-        <img src='ENCG-BM_logo_header.png' width='200' alt='Logo'>
+        <img src='../../image/ENCG-BM_logo_header.png' width='200' alt='Logo'>
     </div>
     <ul class='nav-links'>
-        <li><a href='#'><i class='icon-home'></i> Tableau de bord</a></li>
-        <li><a href='#'><i class='icon-students'></i> Groupes</a></li>
-        <li><a href='#'><i class='icon-teachers'></i> Professeurs</a></li>
+        <li><a href='../dashboard/dashboard.php'><i class='fas fa-home'></i> Tableau de bord</a></li>
+        <li><a href='../group/groups.php'><i class='fas fa-users'></i> Groupes</a></li>
+        <li><a href='../professeur/professeur.php'><i class='fas fa-chalkboard-teacher'></i> Professeurs</a></li>
+        <li><a href='../matier/matier.php'><i class='fas fa-book'></i> Matière</a></li>
         <li class='dropdown'>
-            <a href='#'><i class='icon-attendance'></i> Salles</a>
+            <a href='../salle/salles.php'><i class='fas fa-building'></i> Salles</a>
             <ul class='dropdown-content'>
-                <li><a href='Aj_salle.php'>Ajouter une salle</a></li>
-                <li><a href='Maj_salle.php'>Mettre à jour les salles</a></li>
+                <li><a href='../salle/Aj_salle.php'>Ajouter une salle</a></li>
+                <li><a href='../salle/Maj_salle.php'>Mettre à jour les salles</a></li>
             </ul>
         </li>
-        <li><a href='salle.html'><i class='icon-attendance'></i> Réservations</a></li>
-        <li><a href='#'><i class='icon-logout'></i> Déconnexion</a></li>
+        <li class='dropdown'>
+            <a href='../reservation/Reserve.php'><i class='fas fa-calendar-check'></i> Réservation</a>
+            <ul class='dropdown-content'>
+                <li><a href='../reservation/Evenement.php'>Événement</a></li>
+                <li><a href='../reservation/normal.php'>Cours/Exam</a></li>
+            </ul>
+        </li>
+        <li><a href='../rapport/rapports.php'><i class='fas fa-file-alt'></i> Rapport</a></li>
+        <li><a href='../planning/planning.php'><i class='fas fa-calendar'></i> Planning</a></li>
+        <li><a href='#'><i class='fas fa-sign-out-alt'></i> Déconnexion</a></li>
     </ul>
 </div>
 <div class='main-content'>
@@ -178,49 +169,71 @@ echo "<!DOCTYPE html>
         <table class='attendance'>
             <thead>
                 <tr>
-                    <th class='time-slot'></th>
-                    <th>9H:00 - 10H:30</th>
-                    <th>10H:45 - 12H:15</th>
-                    <th>14H:00 - 15H:30</th>
-                    <th>15H:45 - 17H:15</th>
-                </tr>
-            </thead>
-            <tbody>";
+                    <th class='day'></th>";
+
+foreach ($salles as $salle_id => $salle_name) {
+    echo "<th colspan='4'>$salle_name</th>";
+}
+
+echo "</tr>
+    <tr>
+        <th></th>";
+
+foreach ($salles as $salle_id => $salle_name) {
+    echo "
+        <th>09H:00-10H:30</th>
+        <th>10H:45-12H:15</th>
+        <th>14H:00-15H:30</th>
+        <th>15H:45-17H:15</th>";
+}
+
+echo "</tr>
+    </thead>
+    <tbody>";
 
 $days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 foreach ($days as $day) {
-    echo "<tr><th>$day</th>";
-    $time_slots = ['09:00:00 - 10:30:00', '10:45:00 - 12:15:00', '14:00:00 - 15:30:00', '15:45:00 - 17:15:00'];
-    foreach ($time_slots as $time_slot) {
-        echo "<td>";
-        if (isset($schedule[$day][$time_slot])) {
-            foreach ($schedule[$day][$time_slot] as $course) {
-                $group_info = isset($groups[$course['group_id']]) ? $groups[$course['group_id']] : ['name' => 'Inconnu', 'filiere' => 'Inconnu', 'extra_info' => 'Inconnu'];
-                $subject_name = isset($subjects[$course['subject_id']]) ? $subjects[$course['subject_id']] : 'Inconnu';
-                $professor_name = isset($professors[$course['professeur_id']]) ? $professors[$course['professeur_id']] : 'Inconnu';
-                $salle_name = isset($salles[$course['salle_id']]) ? $salles[$course['salle_id']] : 'Inconnu';
-                $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
+    echo "<tr>
+            <td class='day'>$day</td>";
 
-                // Display information based on the year
-                if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
-                    $group_display = $group_info['name'] . ($group_info['extra_info'] ? " ({$group_info['extra_info']})" : "");
-                } elseif (in_array($group_info['year'], ['4ème', '5ème'])) {
-                    $group_display = $group_info['name'] . ($group_info['filiere'] ? " ({$group_info['filiere']})" : "");
-                } else {
-                    $group_display = $group_info['name'];
+    foreach ($salles as $salle_id => $salle_name) {
+        $time_slots = [
+            '09:00:00 - 10:30:00',
+            '10:45:00 - 12:15:00',
+            '14:00:00 - 15:30:00',
+            '15:45:00 - 17:15:00'
+        ];
+
+        foreach ($time_slots as $time_slot) {
+            echo "<td>";
+            if (isset($schedule[$day][$salle_id][$time_slot])) {
+                foreach ($schedule[$day][$salle_id][$time_slot] as $course) {
+                    $group_info = isset($groups[$course['group_id']]) ? $groups[$course['group_id']] : ['name' => 'Inconnu', 'filiere' => 'Inconnu', 'extra_info' => 'Inconnu'];
+                    $subject_name = isset($subjects[$course['subject_id']]) ? $subjects[$course['subject_id']] : 'Inconnu';
+                    $professor_name = isset($professors[$course['professeur_id']]) ? $professors[$course['professeur_id']] : 'Inconnu';
+                    $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
+
+                    // Display information based on the year
+                    if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
+                        $group_display = $group_info['name'] . ($group_info['extra_info'] ? " ({$group_info['extra_info']})" : "");
+                    } elseif (in_array($group_info['year'], ['4ème', '5ème'])) {
+                        $group_display = $group_info['name'] . ($group_info['filiere'] ? " ({$group_info['filiere']})" : "");
+                    } else {
+                        $group_display = $group_info['name'];
+                    }
+
+                    echo "<div class='course'>
+                            <span>Groupe : $group_display</span><br>
+                            <span>Matière : $subject_name</span><br>
+                            <span>Professeur : $professor_name</span><br>
+                            <span>Type de séance : $type_seance</span>
+                          </div>";
                 }
-
-                echo "<div class='course'>
-                        <span>Groupe : $group_display</span><br>
-                        <span>Matière : $subject_name</span><br>
-                        <span>Professeur : $professor_name</span><br>
-                        <span>Salle : $salle_name</span><br>
-                        <span>Type de séance : $type_seance</span>
-                      </div>";
             }
+            echo "</td>";
         }
-        echo "</td>";
     }
+
     echo "</tr>";
 }
 

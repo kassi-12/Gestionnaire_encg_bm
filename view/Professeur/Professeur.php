@@ -1,59 +1,73 @@
 <?php
-include 'db_connect.php';
+include '../db/db_connect.php';
 
 $edit_mode = false;
 $professeur = ['first_name' => '', 'last_name' => '', 'email' => '', 'gsm' => ''];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['add_professeur'])) {
-     
-        $first_name = $_POST['first_name'];
-        $last_name = $_POST['last_name'];
-        $email = $_POST['email'];
-        $gsm = $_POST['gsm']; // New field
-        $sql = "INSERT INTO professeur (first_name, last_name, email, gsm) VALUES ('$first_name', '$last_name', '$email', '$gsm')";
-        if ($conn->query($sql) === TRUE) {
+        // Retrieve and sanitize form data
+        $first_name = $conn->real_escape_string($_POST['first_name']);
+        $last_name = $conn->real_escape_string($_POST['last_name']);
+        $email = $conn->real_escape_string($_POST['email']);
+        $gsm = $conn->real_escape_string($_POST['gsm']);
+        
+        // Prepare SQL statement
+        $stmt = $conn->prepare("INSERT INTO professeur (first_name, last_name, email, gsm) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param('ssss', $first_name, $last_name, $email, $gsm);
+
+        if ($stmt->execute()) {
             echo "New professeur added successfully";
         } else {
-            echo "Error: " . $sql . "<br>" . $conn->error;
+            echo "Error: " . $stmt->error;
         }
+        $stmt->close();
     } elseif (isset($_POST['delete_professeur'])) {
-       
-        $id = $_POST['id'];
-        $sql = "DELETE FROM professeur WHERE id=$id";
-        if ($conn->query($sql) === TRUE) {
+        $id = (int)$_POST['id'];
+
+        $stmt = $conn->prepare("DELETE FROM professeur WHERE id = ?");
+        $stmt->bind_param('i', $id);
+
+        if ($stmt->execute()) {
             echo "Professeur deleted successfully";
         } else {
-            echo "Error: " . $sql . "<br>" . $conn->error;
+            echo "Error: " . $stmt->error;
         }
+        $stmt->close();
     } elseif (isset($_POST['update_professeur'])) {
-     
-        $id = $_POST['id'];
-        $first_name = $_POST['first_name'];
-        $last_name = $_POST['last_name'];
-        $email = $_POST['email'];
-        $gsm = $_POST['gsm']; 
-        $update_sql = "UPDATE professeur SET first_name='$first_name', last_name='$last_name', email='$email', gsm='$gsm' WHERE id=$id";
-        if ($conn->query($update_sql) === TRUE) {
-            echo "Professeur updated successfully";
-            header("Location: Professeurs.php"); 
+        $id = (int)$_POST['id'];
+        $first_name = $conn->real_escape_string($_POST['first_name']);
+        $last_name = $conn->real_escape_string($_POST['last_name']);
+        $email = $conn->real_escape_string($_POST['email']);
+        $gsm = $conn->real_escape_string($_POST['gsm']);
+        
+        $stmt = $conn->prepare("UPDATE professeur SET first_name = ?, last_name = ?, email = ?, gsm = ? WHERE id = ?");
+        $stmt->bind_param('ssssi', $first_name, $last_name, $email, $gsm, $id);
+
+        if ($stmt->execute()) {
+            header("Location: Professeur.php");
             exit();
         } else {
-            echo "Error: " . $update_sql . "<br>" . $conn->error;
+            echo "Error: " . $stmt->error;
         }
+        $stmt->close();
     }
 }
 
 if (isset($_GET['edit'])) {
-    $id = $_GET['edit'];
-    $sql = "SELECT first_name, last_name, email, gsm FROM professeur WHERE id=$id";
-    $result = $conn->query($sql);
+    $id = (int)$_GET['edit'];
+    $stmt = $conn->prepare("SELECT first_name, last_name, email, gsm FROM professeur WHERE id = ?");
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
     if ($result->num_rows > 0) {
         $professeur = $result->fetch_assoc();
         $edit_mode = true;
     } else {
         echo "Professeur not found";
     }
+    $stmt->close();
 }
 
 $sql = "SELECT id, first_name, last_name, email, gsm FROM professeur";
@@ -67,39 +81,46 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Manage Professeurs</title>
+    <link rel="stylesheet" href="../../assets/styles.css">
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
 </head>
 <body>
 <div class="sidebar">
-        <div class="logo">
-            <img src="ENCG-BM_logo_header.png" width="200" alt="Logo">
-        </div>
-        <ul class="nav-links">
-            <li><a href="#"><i class="icon-home"></i> Dashboard</a></li>
-            <li><a href="#"><i class="icon-students"></i> Groups</a></li>
-            <li><a href="#"><i class="icon-teachers"></i> Professeur</a></li>
-            <li class="dropdown">
-                <a href="salle.html"><i class="icon-attendance"></i> Salles</a>
-                <ul class="dropdown-content">
-                    <li><a href="Aj_salle.php">Ajouter une salle</a></li>
-                    <li><a href="Maj_salle.php">Mettre à jour les salles</a></li>
-                </ul>
-            </li>
-            <li><a href="salle.html"><i class="icon-attendance"></i> Reserve</a></li>
-            <li><a href="#"><i class="icon-logout"></i> Logout</a></li>
-        </ul>
+    <div class='logo'>
+        <img src='../../image/ENCG-BM_logo_header.png' width='200' alt='Logo'>
     </div>
+    <ul class='nav-links'>
+        <li><a href='../dashboard/dashboard.php'><i class='fas fa-home'></i> Tableau de bord</a></li>
+        <li><a href='../group/groups.php'><i class='fas fa-users'></i> Groupes</a></li>
+        <li><a href='../professeur/professeur.php'><i class='fas fa-chalkboard-teacher'></i> Professeurs</a></li>
+        <li><a href='../matier/matier.php'><i class='fas fa-book'></i> Matière</a></li>
+        <li class='dropdown'>
+            <a href='../salle/salles.php'><i class='fas fa-building'></i> Salles</a>
+            <ul class='dropdown-content'>
+                <li><a href='../salle/Aj_salle.php'>Ajouter une salle</a></li>
+                <li><a href='../salle/Maj_salle.php'>Mettre à jour les salles</a></li>
+            </ul>
+        </li>
+        <li class='dropdown'>
+            <a href='../reservation/Reserve.php'><i class='fas fa-calendar-check'></i> Réservation</a>
+            <ul class='dropdown-content'>
+                <li><a href='../reservation/Evenement.php'>Événement</a></li>
+                <li><a href='../reservation/normal.php'>Cours/Exam</a></li>
+            </ul>
+        </li>
+        <li><a href='../rapport/rapports.php'><i class='fas fa-file-alt'></i> Rapport</a></li>
+        <li><a href='../planning/planning.php'><i class='fas fa-calendar'></i> Planning</a></li>
+        <li><a href='#'><i class='fas fa-sign-out-alt'></i> Déconnexion</a></li>
+    </ul>
+</div>
     <div class="main-content">
-       
         <section class="attendance">
-            <h2>Manage Professeur</h2>
+            <h2>Professeur</h2>
 
             <form action="Professeur.php" method="post">
                 <h3><?php echo $edit_mode ? 'Edit Professeur' : 'Add New Professeur'; ?></h3>
-                <br>
-                <hr>
-                <br>
+                
                 <label for="first_name">First Name:</label>
                 <input type="text" id="first_name" name="first_name" value="<?php echo htmlspecialchars($professeur['first_name']); ?>" required>
                 
@@ -120,14 +141,13 @@ $conn->close();
                 <?php endif; ?>
             </form>
 
-          
             <table>
                 <thead>
                     <tr>
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Email</th>
-                        <th>Gsm</th>
+                        <th>GSM</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -140,13 +160,11 @@ $conn->close();
                                 <td><?php echo htmlspecialchars($row["email"]); ?></td>
                                 <td><?php echo htmlspecialchars($row["gsm"]); ?></td>
                                 <td>
-                                   
                                     <form action="Professeur.php" method="get" style="display:inline;">
                                         <input type="hidden" name="edit" value="<?php echo htmlspecialchars($row["id"]); ?>">
                                         <button type="submit">Edit</button>
                                     </form>
 
-                                   
                                     <form action="Professeur.php" method="post" style="display:inline;">
                                         <input type="hidden" name="id" value="<?php echo htmlspecialchars($row["id"]); ?>">
                                         <button type="submit" name="delete_professeur">Delete</button>
@@ -155,7 +173,7 @@ $conn->close();
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <tr><td colspan="4">No data found</td></tr>
+                        <tr><td colspan="5">No data found</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>

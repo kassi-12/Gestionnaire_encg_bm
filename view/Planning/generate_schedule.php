@@ -11,10 +11,24 @@ $roomTypes = $_POST['room-type'] ?? [];
 // Convert room types array to a comma-separated string for easier SQL querying
 $roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
 
-// Fetch reservations based on the provided form data
+// Construct SQL query with additional filters
 $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
                     FROM reservation 
                     WHERE type_seance IN ('$roomTypesStr')";
+
+if ($niveau !== '') {
+    $sql_reservation .= " AND group_id IN (SELECT id FROM grp WHERE year = '" . $conn->real_escape_string($niveau) . "')";
+}
+if ($groupName !== '') {
+    $sql_reservation .= " AND group_id IN (SELECT id FROM grp WHERE name = '" . $conn->real_escape_string($groupName) . "')";
+}
+if ($filiere !== '') {
+    $sql_reservation .= " AND group_id IN (SELECT id FROM grp WHERE (extra_info = '" . $conn->real_escape_string($filiere) . "' OR filiere = '" . $conn->real_escape_string($filiere) . "'))";
+}
+if ($semester !== '') {
+    $sql_reservation .= " AND semester_id = '" . $conn->real_escape_string($semester) . "'";
+}
+
 $result_reservation = $conn->query($sql_reservation);
 
 if (!$result_reservation) {

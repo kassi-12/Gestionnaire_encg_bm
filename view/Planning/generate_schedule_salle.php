@@ -12,7 +12,8 @@ $roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTyp
 // Fetch reservations based on the provided form data
 $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
                     FROM reservation 
-                    WHERE salle_id = ? AND type_seance IN ('$roomTypesStr')";
+                    WHERE salle_id = ? AND semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
+
 $stmt_reservation = $conn->prepare($sql_reservation);
 if (!$stmt_reservation) {
     die("Erreur de préparation de la requête : " . $conn->error);
@@ -138,25 +139,36 @@ echo "<!DOCTYPE html>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Planning</title>
     <link rel='stylesheet' href='../../assets/styles.css'>
+        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
+
 </head>
 <body>
 <div class='sidebar'>
     <div class='logo'>
-        <img src='ENCG-BM_logo_header.png' width='200' alt='Logo'>
+        <img src='../../image/ENCG-BM_logo_header.png' width='200' alt='Logo'>
     </div>
     <ul class='nav-links'>
-        <li><a href='#'><i class='icon-home'></i> Tableau de bord</a></li>
-        <li><a href='#'><i class='icon-students'></i> Groupes</a></li>
-        <li><a href='#'><i class='icon-teachers'></i> Professeurs</a></li>
+        <li><a href='../dashboard/dashboard.php'><i class='fas fa-home'></i> Tableau de bord</a></li>
+        <li><a href='../group/groups.php'><i class='fas fa-users'></i> Groupes</a></li>
+        <li><a href='../professeur/professeur.php'><i class='fas fa-chalkboard-teacher'></i> Professeurs</a></li>
+        <li><a href='../matier/matier.php'><i class='fas fa-book'></i> Matière</a></li>
         <li class='dropdown'>
-            <a href='#'><i class='icon-attendance'></i> Salles</a>
+            <a href='../salle/salles.php'><i class='fas fa-building'></i> Salles</a>
             <ul class='dropdown-content'>
-                <li><a href='Aj_salle.php'>Ajouter une salle</a></li>
-                <li><a href='Maj_salle.php'>Mettre à jour les salles</a></li>
+                <li><a href='../salle/Aj_salle.php'>Ajouter une salle</a></li>
+                <li><a href='../salle/Maj_salle.php'>Mettre à jour les salles</a></li>
             </ul>
         </li>
-        <li><a href='salle.html'><i class='icon-attendance'></i> Réservations</a></li>
-        <li><a href='#'><i class='icon-logout'></i> Déconnexion</a></li>
+        <li class='dropdown'>
+            <a href='../reservation/Reserve.php'><i class='fas fa-calendar-check'></i> Réservation</a>
+            <ul class='dropdown-content'>
+                <li><a href='../reservation/Evenement.php'>Événement</a></li>
+                <li><a href='../reservation/normal.php'>Cours/Exam</a></li>
+            </ul>
+        </li>
+        <li><a href='../rapport/rapports.php'><i class='fas fa-file-alt'></i> Rapport</a></li>
+        <li><a href='../planning/planning.php'><i class='fas fa-calendar'></i> Planning</a></li>
+        <li><a href='#'><i class='fas fa-sign-out-alt'></i> Déconnexion</a></li>
     </ul>
 </div>
 <div class='main-content'>
@@ -189,11 +201,11 @@ foreach ($days as $day) {
         echo "<td>";
         if (isset($schedule[$day][$time_slot])) {
             foreach ($schedule[$day][$time_slot] as $course) {
-                $group_info = isset($groups[$course['group_id']]) ? $groups[$course['group_id']] : ['name' => 'Inconnu', 'filiere' => 'Inconnu', 'extra_info' => 'Inconnu'];
-                $subject_name = isset($subjects[$course['subject_id']]) ? $subjects[$course['subject_id']] : 'Inconnu';
-                $professor_name = isset($professors[$course['professeur_id']]) ? $professors[$course['professeur_id']] : 'Inconnu';
-                $salle_name = isset($salles[$course['salle_id']]) ? $salles[$course['salle_id']] : 'Inconnu';
-                $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
+                $group_info = $groups[$course['group_id']] ?? ['name' => 'Inconnu', 'filiere' => 'Inconnu', 'extra_info' => 'Inconnu'];
+                $subject_name = $subjects[$course['subject_id']] ?? 'Inconnu';
+                $professor_name = $professors[$course['professeur_id']] ?? 'Inconnu';
+                $salle_name = $salles[$course['salle_id']] ?? 'Inconnu';
+                $type_seance = $course['type_seance'] ?? 'Inconnu';
                 
                 // Display information based on the year
                 if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
