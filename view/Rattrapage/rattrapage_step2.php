@@ -38,7 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
     $formatter->setPattern('EEEE');
     $day_of_week = $formatter->format(strtotime($date));
-
+    
+    
+    if ($room_type == 'exam' || $room_type == 'controle') {
+        $group_size = ceil($group_size / 2);
+    }
+    
     // Fetch rooms that match the requirements
     $capacity_column = ($room_type == 'exam' || $room_type == 'controle') ? 'capacity_exam' : 'capacity';
     $sql_rooms = "SELECT id, name, $capacity_column as capacity FROM salles 
@@ -160,6 +165,8 @@ function generate_html_time_slots($time_slots, $reservations, $room_id, $priorit
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Troisième Étape de Réservation</title>
     <link rel="stylesheet" href="../../assets/styles.css">
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
+
     <style>
         .reserved {
             background-color: gray !important;

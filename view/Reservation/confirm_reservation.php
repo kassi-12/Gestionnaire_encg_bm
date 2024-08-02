@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Préparer l'instruction SQL d'insertion
     $sql_insert = "INSERT INTO reservation (group_id, salle_id, professeur_id, reservation_date, start_time, end_time, jour_par_semaine, semester_id, subject_id, type_seance) 
-                   VALUES ((SELECT id FROM `grp` WHERE name = ? LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?,?)";
+                   VALUES ((SELECT id FROM `grp` WHERE name = ? and (extra_info = '$filiere' OR filiere = '$filiere') LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?,?)";
     $stmt = $conn->prepare($sql_insert);
     if ($stmt === false) {
         die("Erreur de préparation de la requête : " . $conn->error);

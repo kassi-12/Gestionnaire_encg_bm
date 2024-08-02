@@ -148,6 +148,60 @@ echo "<!DOCTYPE html>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Planning</title>
     <link rel='stylesheet' href='../../assets/styles.css'>
+    <style>
+
+    .main-content {
+    margin-top: 20px;
+}
+table {
+    .main-content {
+    margin-top: 20px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 12px;
+}
+th, td {
+    border: 1px solid #000;
+    padding: 5px;
+    font-size: 12px;
+}
+th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+   
+}
+th br {
+    display: block;
+    margin-bottom: 5px;
+    text-align: center; /* Center text horizontally */
+    vertical-align: middle; /* Center text vertically */
+}
+.day {
+    font-weight: bold;
+    background-color: #f4f4f4;
+}
+.course {
+    margin-bottom: 10px;
+    padding: 5px;
+    border-radius: 4px;
+    color: #fff;
+    text-align: center;
+}
+.year-1 { background-color: green; }
+.year-2 { background-color: yellow; color: #000; }
+.year-3 { background-color: blue; }
+.year-4 { background-color: red; }
+.year-5 { background-color: pink; }
+   
+    
+    </style>
 </head>
 <body>
 <div class='sidebar'>
@@ -187,14 +241,8 @@ echo "<!DOCTYPE html>
 
 $days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 foreach ($days as $day) {
-    echo "<tr>
-            <td class='day'>$day</td>";
-    $time_slots = [
-        '09:00:00 - 10:30:00',
-        '10:45:00 - 12:15:00',
-        '14:00:00 - 15:30:00',
-        '15:45:00 - 17:15:00'
-    ];
+    echo "<tr><th>$day</th>";
+    $time_slots = ['09:00:00 - 10:30:00', '10:45:00 - 12:15:00', '14:00:00 - 15:30:00', '15:45:00 - 17:15:00'];
     foreach ($time_slots as $time_slot) {
         echo "<td>";
         if (isset($schedule[$day][$time_slot])) {
@@ -204,7 +252,25 @@ foreach ($days as $day) {
                 $professor_name = isset($professors[$course['professeur_id']]) ? $professors[$course['professeur_id']] : 'Inconnu';
                 $salle_name = isset($salles[$course['salle_id']]) ? $salles[$course['salle_id']] : 'Inconnu';
                 $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
-                
+                $year_class = '';
+                    switch ($group_info['year']) {
+                        case '1er':
+                            $year_class = 'year-1';
+                            break;
+                        case '2ème':
+                            $year_class = 'year-2';
+                            break;
+                        case '3ème':
+                            $year_class = 'year-3';
+                            break;
+                        case '4ème':
+                            $year_class = 'year-4';
+                            break;
+                        case '5ème':
+                            $year_class = 'year-5';
+                            break;
+                    }
+
                 // Display information based on the year
                 if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
                     $group_display = $group_info['name'] . ($group_info['extra_info'] ? " ({$group_info['extra_info']})" : "");
@@ -214,12 +280,12 @@ foreach ($days as $day) {
                     $group_display = $group_info['name'];
                 }
                 
-                echo "<div class='course'>
-                        <span>Groupe : $group_display</span><br>
-                        <span>Matière : $subject_name</span><br>
-                        <span>Professeur : $professor_name</span><br>
-                        <span>Salle : $salle_name</span><br>
-                        <span>Type de séance : $type_seance</span>
+                echo "<div class='course $year_class'>
+                        <span>$group_display</span><br><hr>
+                        <span>$subject_name ". " - " . " $type_seance </span><br><hr>
+                        <span>$professor_name</span><br><hr>
+                        <span>$salle_name</span><br><hr>
+                        
                       </div>";
             }
         }
@@ -227,7 +293,6 @@ foreach ($days as $day) {
     }
     echo "</tr>";
 }
-
 echo "</tbody>
     </table>
 </div>

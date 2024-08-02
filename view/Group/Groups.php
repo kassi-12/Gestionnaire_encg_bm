@@ -164,6 +164,8 @@ $conn->close();
                     <option value="-" <?php echo ($group['extra_info'] == '-') ? 'selected' : ''; ?>>-</option>
                     <option value="Section A" <?php echo ($group['extra_info'] == 'Section A') ? 'selected' : ''; ?>>Section A</option>
                     <option value="Section B" <?php echo ($group['extra_info'] == 'Section B') ? 'selected' : ''; ?>>Section B</option>
+                    <option value="Section A(GESTION)" <?php echo ($group['extra_info'] == 'Section A(GESTION)') ? 'selected' : ''; ?>>Section A(GESTION)</option>
+                    <option value="Section A(COMMERCE)" <?php echo ($group['extra_info'] == 'Section A(COMMERCE)') ? 'selected' : ''; ?>>Section A(COMMERCE)</option>
                 </select>
             </div>
             <?php if ($edit_mode): ?>

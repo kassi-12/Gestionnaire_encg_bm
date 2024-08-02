@@ -6,7 +6,6 @@
     <title>Session Normal</title>
     <link rel="stylesheet" href="../../assets/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
 </head>
 <body>
 <div class='sidebar'>
@@ -37,68 +36,64 @@
         <li><a href='#'><i class='fas fa-sign-out-alt'></i> Déconnexion</a></li>
     </ul>
 </div>
-    <div class="main-content">
-        <h2>Planning</h2>
-        <div class="container">
-            <div class="add-classes">
-                <h3>Formulaire de Planning</h3>
-                <p class="required-fields">* Tous les champs sont obligatoires</p>
+<div class="main-content">
+    <h2>Planning</h2>
+    <div class="container">
+        <div class="add-classes">
+            <h3>Formulaire de Planning</h3>
+            <p class="required-fields">* Tous les champs sont obligatoires</p>
+            
+            <form action="generate_schedule_all.php" method="POST">
+                <label for="Semester">Semestre :</label>
+                <select id="Semester" name="Semester">
+                    <option value="">-</option>
+                    <option value="all">Tous les Semestres</option> <!-- Added option for all semesters -->
+                    <?php
+                    // Populate semester options
+                    include '../db/db_connect.php';
+                    $sql_semesters = "SELECT id, name FROM semesters";
+                    $result_semesters = $conn->query($sql_semesters);
+                    while ($row = $result_semesters->fetch_assoc()) {
+                        echo "<option value='" . htmlspecialchars($row['id']) . "'>" . htmlspecialchars($row['name']) . "</option>";
+                    }
+                    $conn->close();
+                    ?>
+                </select><br><br>
                 
-                <form action="generate_schedule_all.php" method="POST">
-                    
-                    
-
-                    <label for="Semester">Semestre :</label>
-                    <select id="Semester" name="Semester">
-                        <option value="">-</option>
-                        <?php
-                        // Populate semester options
-                        include '../db/db_connect.php';
-                        $sql_semesters = "SELECT id, name FROM semesters";
-                        $result_semesters = $conn->query($sql_semesters);
-                        while ($row = $result_semesters->fetch_assoc()) {
-                            echo "<option value='" . htmlspecialchars($row['id']) . "'>" . htmlspecialchars($row['name']) . "</option>";
-                        }
-                        $conn->close();
-                        ?>
-                    </select><br><br>
-                    
-                    <fieldset>
-                        <legend>Type de séance * :</legend>
-                        <div class="checkbox-group">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cours" name="room-type[]" value="cours">
-                                <label for="cours">Cours</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="td" name="room-type[]" value="TD">
-                                <label for="td">TD</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="tp" name="room-type[]" value="TP">
-                                <label for="tp">TP</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="controle" name="room-type[]" value="controle">
-                                <label for="controle">Contrôle</label>
-                            </div>
-                            
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="soutenance" name="room-type[]" value="soutenance">
-                                <label for="soutenance">Soutenance</label>
-                            </div>
-                            
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="exam" name="room-type[]" value="exam">
-                                <label for="exam">Examen</label>
-                            </div>
+                <fieldset>
+                    <legend>Type de séance * :</legend>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="cours" name="room-type[]" value="cours">
+                            <label for="cours">Cours</label>
                         </div>
-                    </fieldset>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="td" name="room-type[]" value="TD">
+                            <label for="td">TD</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="tp" name="room-type[]" value="TP">
+                            <label for="tp">TP</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="controle" name="room-type[]" value="controle">
+                            <label for="controle">Contrôle</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="soutenance" name="room-type[]" value="soutenance">
+                            <label for="soutenance">Soutenance</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="exam" name="room-type[]" value="exam">
+                            <label for="exam">Examen</label>
+                        </div>
+                    </div>
+                </fieldset>
 
-                    <button type="submit">Suivant</button>
-                </form>
-            </div>
+                <button type="submit">Suivant</button>
+            </form>
         </div>
     </div>
+</div>
 </body>
 </html>

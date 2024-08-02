@@ -92,7 +92,7 @@ $professeurData = $result->fetch_all(MYSQLI_ASSOC);
             
         </header>
         <section class="attendance">
-            <h2>Today Attendance</h2>
+            <h2>salles</h2>
             <table>
                 <thead>
                     <tr>
@@ -115,7 +115,7 @@ $professeurData = $result->fetch_all(MYSQLI_ASSOC);
 
         </section>
         <section class="attendance">
-            <h2>Professeur List</h2>
+            <h2>Professeurs</h2>
             <table>
                 <thead>
                     <tr>

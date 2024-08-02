@@ -1,12 +1,23 @@
 <?php
 include '../db/db_connect.php';
+
+// Retrieve semester and room types from form submission
 $semester = $_POST['Semester'] ?? '';
 $roomTypes = $_POST['room-type'] ?? [];
 
+// Escape the room types to prevent SQL injection
 $roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
-// Fetch reservations based on the provided form data
-$sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                    FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
+
+// Check if the "Tous les Semestres" option is selected
+if ($semester === 'all') {
+    // Query reservations for all semesters
+    $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
+                        FROM reservation WHERE type_seance IN ('$roomTypesStr')";
+} else {
+    // Query reservations for the selected semester
+    $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
+                        FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
+}
 
 $result_reservation = $conn->query($sql_reservation);
 
@@ -33,7 +44,7 @@ while ($row = $result_reservation->fetch_assoc()) {
     $group_ids[] = $row['group_id'];
     $subject_ids[] = $row['subject_id'];
     $professor_ids[] = $row['professeur_id'];
-    $salle_ids[] = $salle_id;
+    $salle_ids[] = $row['salle_id'];
 }
 
 // Eliminate duplicate IDs
@@ -98,9 +109,9 @@ if (!empty($professor_ids)) {
     }
 }
 
-// Retrieve room names
+// Retrieve room names and capacities
 if (!empty($salle_ids)) {
-    $sql_salle = "SELECT id, name FROM salles WHERE id IN (" . implode(',', array_fill(0, count($salle_ids), '?')) . ")";
+    $sql_salle = "SELECT id, name, capacity FROM salles WHERE id IN (" . implode(',', array_fill(0, count($salle_ids), '?')) . ")";
     $stmt_salle = $conn->prepare($sql_salle);
     if (!$stmt_salle) {
         die("Erreur de préparation de la requête : " . $conn->error);
@@ -109,7 +120,10 @@ if (!empty($salle_ids)) {
     $stmt_salle->execute();
     $result_salle = $stmt_salle->get_result();
     while ($row = $result_salle->fetch_assoc()) {
-        $salles[$row['id']] = $row['name'];
+        $salles[$row['id']] = [
+            'name' => $row['name'],
+            'capacity' => $row['capacity']
+        ];
     }
 }
 
@@ -123,15 +137,58 @@ echo "<!DOCTYPE html>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Planning</title>
     <link rel='stylesheet' href='../../assets/styles.css'>
-        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
-
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
     <style>
-    
-    }
-    .course {
-        margin-bottom: 10px; /* Add space between courses */
-    }
-</style>
+    .main-content {
+    margin-top: 20px;
+}
+table {
+    .main-content {
+    margin-top: 20px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 12px;
+}
+th, td {
+    border: 1px solid #000;
+    padding: 5px;
+    font-size: 12px;
+}
+th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+   
+}
+th br {
+    display: block;
+    margin-bottom: 5px;
+    text-align: center; /* Center text horizontally */
+    vertical-align: middle; /* Center text vertically */
+}
+.day {
+    font-weight: bold;
+    background-color: #f4f4f4;
+}
+.course {
+    margin-bottom: 10px;
+    padding: 5px;
+    border-radius: 4px;
+    color: #fff;
+    text-align: center;
+}
+.year-1 { background-color: green; }
+.year-2 { background-color: yellow; color: #000; }
+.year-3 { background-color: blue; }
+.year-4 { background-color: red; }
+.year-5 { background-color: pink; }
+    </style>
 </head>
 <body>
 <div class='sidebar'>
@@ -169,49 +226,66 @@ echo "<!DOCTYPE html>
         <table class='attendance'>
             <thead>
                 <tr>
-                    <th class='day'></th>";
+                    <th class='day'>Jour</th>
+                    <th>Créneau</th>";
 
-foreach ($salles as $salle_id => $salle_name) {
-    echo "<th colspan='4'>$salle_name</th>";
-}
-
-echo "</tr>
-    <tr>
-        <th></th>";
-
-foreach ($salles as $salle_id => $salle_name) {
-    echo "
-        <th>09H:00-10H:30</th>
-        <th>10H:45-12H:15</th>
-        <th>14H:00-15H:30</th>
-        <th>15H:45-17H:15</th>";
-}
+                    foreach ($salles as $salle_info) {
+                        echo "<th>{$salle_info['name']}<br><br><hr><br>{$salle_info['capacity']}</th>";
+                    }
 
 echo "</tr>
     </thead>
     <tbody>";
 
 $days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+$time_slots = [
+    '09:00:00 - 10:30:00' => '09H:00-10H:30',
+    '10:45:00 - 12:15:00' => '10H:45-12H:15',
+    '14:00:00 - 15:30:00' => '14H:00-15H:30',
+    '15:45:00 - 17:15:00' => '15H:45-17H:15'
+];
+
 foreach ($days as $day) {
-    echo "<tr>
-            <td class='day'>$day</td>";
+    $first_time_slot = true;
+    foreach ($time_slots as $slot_key => $slot_label) {
+        if ($day === 'samedi' && in_array($slot_key, ['14:00:00 - 15:30:00', '15:45:00 - 17:15:00'])) {
+            continue;
+        }
+        echo "<tr>";
+        if ($first_time_slot) {
+            echo "<td class='day' rowspan='4'>$day</td>";
+            $first_time_slot = false;
+        }
+        echo "<td class='day'>$slot_label</td>";
 
-    foreach ($salles as $salle_id => $salle_name) {
-        $time_slots = [
-            '09:00:00 - 10:30:00',
-            '10:45:00 - 12:15:00',
-            '14:00:00 - 15:30:00',
-            '15:45:00 - 17:15:00'
-        ];
-
-        foreach ($time_slots as $time_slot) {
+        foreach ($salles as $salle_id => $salle_info) {
             echo "<td>";
-            if (isset($schedule[$day][$salle_id][$time_slot])) {
-                foreach ($schedule[$day][$salle_id][$time_slot] as $course) {
+            if (isset($schedule[$day][$salle_id][$slot_key])) {
+                foreach ($schedule[$day][$salle_id][$slot_key] as $course) {
                     $group_info = isset($groups[$course['group_id']]) ? $groups[$course['group_id']] : ['name' => 'Inconnu', 'filiere' => 'Inconnu', 'extra_info' => 'Inconnu'];
                     $subject_name = isset($subjects[$course['subject_id']]) ? $subjects[$course['subject_id']] : 'Inconnu';
                     $professor_name = isset($professors[$course['professeur_id']]) ? $professors[$course['professeur_id']] : 'Inconnu';
                     $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
+
+                    // Determine CSS class based on the year
+                    $year_class = '';
+                    switch ($group_info['year']) {
+                        case '1er':
+                            $year_class = 'year-1';
+                            break;
+                        case '2ème':
+                            $year_class = 'year-2';
+                            break;
+                        case '3ème':
+                            $year_class = 'year-3';
+                            break;
+                        case '4ème':
+                            $year_class = 'year-4';
+                            break;
+                        case '5ème':
+                            $year_class = 'year-5';
+                            break;
+                    }
 
                     // Display information based on the year
                     if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
@@ -222,19 +296,21 @@ foreach ($days as $day) {
                         $group_display = $group_info['name'];
                     }
 
-                    echo "<div class='course'>
-                            <span>Groupe : $group_display</span><br>
-                            <span>Matière : $subject_name</span><br>
-                            <span>Professeur : $professor_name</span><br>
-                            <span>Type de séance : $type_seance</span>
+                    echo "<div class='course $year_class'>
+                            <span>$group_display</span><br>
+                            <hr>
+                            <span>$subject_name - $type_seance</span><br>
+                            <hr>
+                            <span>$professor_name</span><br>
+                            <span></span>
                           </div>";
                 }
             }
             echo "</td>";
         }
-    }
 
-    echo "</tr>";
+        echo "</tr>";
+    }
 }
 
 echo "</tbody>
@@ -247,9 +323,9 @@ echo "</tbody>
 function saveAsPDF() {
     html2canvas(document.getElementById('schedule-content'), {
         onrendered: function(canvas) {
-            var imgData = canvas.toDataURL('image/png');
+            var imgData = canvas.toDataURL('image/jpeg');
             var doc = new jsPDF('landscape');
-            doc.addImage(imgData, 'PNG', 20, 20, 255, 160);
+            doc.addImage(imgData, 'jpeg', 20, 20, 230, 160);
             doc.save('schedule.pdf');
         }
     });
@@ -257,4 +333,3 @@ function saveAsPDF() {
 </script>
 </body>
 </html>";
-?>

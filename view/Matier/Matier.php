@@ -117,7 +117,18 @@ $conn->close();
                 <br>
                 <label for="subject_name">Nom de la Matière :</label>
                 <input type="text" id="subject_name" name="subject_name" value="<?php echo htmlspecialchars($subject['subject_name']); ?>" required>
-                
+                <label for="year">Niveau :</label>
+                <select id="year" name="year" required>
+                    <?php if ($years->num_rows > 0): ?>
+                        <?php while($row = $years->fetch_assoc()): ?>
+                            <option value="<?php echo htmlspecialchars($row['year']); ?>" <?php echo ($row['year'] == $subject['year']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($row['year']) . " année"; ?>
+                            </option>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <option value="">Aucun niveau disponible</option>
+                    <?php endif; ?>
+                </select>
                 <label for="semester_id">Semestre :</label>
                 <select id="semester_id" name="semester_id" required>
                     <?php if ($semesters->num_rows > 0): ?>
@@ -131,18 +142,7 @@ $conn->close();
                     <?php endif; ?>
                 </select>
                 
-                <label for="year">Niveau :</label>
-                <select id="year" name="year" required>
-                    <?php if ($years->num_rows > 0): ?>
-                        <?php while($row = $years->fetch_assoc()): ?>
-                            <option value="<?php echo htmlspecialchars($row['year']); ?>" <?php echo ($row['year'] == $subject['year']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($row['year']) . " année"; ?>
-                            </option>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <option value="">Aucun niveau disponible</option>
-                    <?php endif; ?>
-                </select>
+                
                 
                 <?php if ($edit_mode): ?>
                     <input type="hidden" name="id" value="<?php echo htmlspecialchars($_GET['edit']); ?>">

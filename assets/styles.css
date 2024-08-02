@@ -12,14 +12,16 @@ body {
 
 
 .sidebar {
-    width: 250px;
-    background-color: #003366; 
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 20px;
+    width: 250px; /* Largeur de la barre latérale */
+    background-color: #003366; /* Couleur de fond bleu foncé */
+    height: auto; /* Hauteur automatique pour s'adapter au contenu */
+    min-height: 100vh; /* Hauteur minimale de 100% de la hauteur de la vue de la fenêtre */
+    display: flex; /* Utilisation de flexbox pour la mise en page */
+    flex-direction: column; /* Disposition en colonne */
+    align-items: center; /* Centrer les éléments horizontalement */
+    padding-top: 20px; /* Espacement en haut */
 }
+
 
 .logo img {
     margin-bottom: 20px;
@@ -137,6 +139,8 @@ header {
     padding: 10px;
     text-align: left;
     border-bottom: 1px solid #ddd;
+    text-align: center; /* Center text horizontally */
+    vertical-align: middle; /* Center text vertically */
 }
 
 .teachers {
@@ -303,6 +307,8 @@ th, td {
 th {
     background-color: #f9f9f9;
     color: #333;
+    text-align: center; /* Center text horizontally */
+    vertical-align: middle; /* Center text vertically */
 }
 .form-container {
     background-color: #fff;

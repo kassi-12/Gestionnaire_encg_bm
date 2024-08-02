@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($stmt_update->execute()) {
             echo "Réservation de rattrapage confirmée avec succès et statut mis à jour!";
-            header('Location: ../reservation/reserve.php?date=' . urlencode($date) . '&salle=' . urlencode($selected_room));
+            header('Location: ../rapport/reserve.php?date=' . urlencode($date) . '&salle=' . urlencode($selected_room));
             exit();
         } else {
             die("Erreur lors de la mise à jour du statut du rapport : " . $stmt_update->error);

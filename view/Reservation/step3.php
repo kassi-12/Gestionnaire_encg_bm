@@ -11,16 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $prof_id = isset($_POST['Prof']) ? $_POST['Prof'] : '';
     $date = isset($_POST['date_debut']) ? $_POST['date_debut'] : '';
 
-    // // Debug output
-    // echo "Niveau: $niveau<br>";
-    // echo "GroupName: $group_name<br>";
-    // echo "Filiere: $filiere<br>";
-    // echo "Semester: $semester<br>";
-    // echo "Room Type: $room_type<br>";
-    // echo "Subject ID: $subject_id<br>";
-    // echo "Professor ID: $prof_id<br>";
-    // echo "Date: $date<br>";
-    
     // Use IntlDateFormatter to get the day of the week in French
     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
     $formatter->setPattern('EEEE');
@@ -33,13 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         die("Erreur lors de la récupération du groupe : " . $conn->error);
     }
     $group = $result_group->fetch_assoc();
-    $group_size = isset($group['nombre']) ? $group['nombre'] : 0;
-    if ($room_type == 'exam' || $room_type == 'controle') {
-        $group_size = ceil($group_size / 2);
-    }
     
-    // Debug output
-    echo "Group Size: $group_size<br>";
+    $group_size = $group['nombre'];
 
     if ($group_size == 0) {
         die("Le groupe spécifié n'a pas été trouvé ou la taille du groupe est invalide.");
@@ -53,14 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!$result_rooms) {
         die("Erreur lors de la récupération des salles : " . $conn->error);
     }
-    
-    // // Debug output
-    // echo "Rooms Query: $sql_rooms<br>";
-    // echo "Rooms Found: " . $result_rooms->num_rows . "<br>";
 
     $sql_reservations = "SELECT salle_id, start_time, end_time FROM reservation 
                          WHERE jour_par_semaine = '$day_of_week' 
-                         AND semester_id = '$semester' 
                          AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= $group_size)";
     $result_reservations = $conn->query($sql_reservations);
 
@@ -75,17 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 $time_slots = [
-    'Lundi-Jeudi' => [
+    'Lundi-Vendredi' => [
         '09:00-10:30',
         '10:45-12:15',
         '14:00-15:30',
         '15:45-17:15'
-    ],
-    'Vendredi' => [
-        '09:00-10:30',
-        '10:45-12:15',
-        '15:00-16:30',
-        '16:45-18:15'
     ],
     'Samedi' => [
         '09:00-10:30',
@@ -210,7 +184,7 @@ function generate_html_time_slots($time_slots, $reservations, $room_id) {
                         echo '<td>' . htmlspecialchars($room['name']) . '</td>';
                         echo '<td>';
                         
-                        $day_key = $day_of_week == 'vendredi' ? 'Vendredi' : ($day_of_week == 'samedi' ? 'Samedi' : 'Lundi-Jeudi');
+                        $day_key = $day_of_week == 'samedi' ? 'Samedi' : 'Lundi-Vendredi';
                         
                         echo generate_html_time_slots($time_slots[$day_key], $reservations, $room['id']);
                         
