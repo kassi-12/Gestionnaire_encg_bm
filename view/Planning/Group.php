@@ -209,10 +209,7 @@ $conn->close();
                                 <label for="soutenance">Soutenance</label>
                             </div>
                             
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="exam" name="room-type[]" value="exam">
-                                <label for="exam">Examen</label>
-                            </div>
+                            
                         </div>
                     </fieldset>
 

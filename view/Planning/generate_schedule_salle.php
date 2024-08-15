@@ -9,6 +9,13 @@ $roomTypes = $_POST['room-type'] ?? [];
 // Convert room types array to a comma-separated string for easier SQL querying
 $roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
 
+// Initialize arrays to store data
+$schedule = [];
+$group_ids = [];
+$subject_ids = [];
+$professor_ids = [];
+$salle_ids = [];
+
 // Fetch reservations based on the provided form data
 $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
                     FROM reservation 
@@ -25,13 +32,6 @@ $result_reservation = $stmt_reservation->get_result();
 if (!$result_reservation) {
     die("Erreur lors de la récupération des données de réservation : " . $conn->error);
 }
-
-// Initialize arrays to store data
-$schedule = [];
-$group_ids = [];
-$subject_ids = [];
-$professor_ids = [];
-$salle_ids = [];
 
 // Retrieve reservation data and necessary IDs
 while ($row = $result_reservation->fetch_assoc()) {
@@ -51,6 +51,41 @@ while ($row = $result_reservation->fetch_assoc()) {
     $professor_ids[] = $row['professeur_id'];
     $salle_ids[] = $row['salle_id'];
 }
+
+// // Handle "controle" room type separately
+// if (in_array('controle', $roomTypes)) {
+//     $sql_controle = "SELECT id, controle_date, start_time, end_time, subject_id, salle_id
+//                      FROM controle
+//                      WHERE id IN (SELECT controle_id FROM salles_controle WHERE salle_id = ?)";
+
+//     $stmt_controle = $conn->prepare($sql_controle);
+//     if (!$stmt_controle) {
+//         die("Erreur de préparation de la requête : " . $conn->error);
+//     }
+//     $stmt_controle->bind_param('i', $niveau);
+//     $stmt_controle->execute();
+//     $result_controle = $stmt_controle->get_result();
+
+//     if (!$result_controle) {
+//         die("Erreur lors de la récupération des données de contrôle : " . $conn->error);
+//     }
+
+//     while ($row = $result_controle->fetch_assoc()) {
+//         $day = strtolower(date('l', strtotime($row['controle_date']))); // Convert date to weekday
+//         $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
+//         $schedule[$day][$time_slot][] = [
+//             'group_id' => null,
+//             'subject_id' => $row['subject_id'],
+//             'professeur_id' => null,
+//             'salle_id' => $row['salle_id'],
+//             'type_seance' => 'controle'
+//         ];
+
+//         // Only accumulate IDs for existing fields
+//         $subject_ids[] = $row['subject_id'];
+//         $salle_ids[] = $row['salle_id'];
+//     }
+// }
 
 // Eliminate duplicate IDs
 $group_ids = array_unique($group_ids);
@@ -244,23 +279,23 @@ foreach ($days as $day) {
                 $salle_name = isset($salles[$course['salle_id']]) ? $salles[$course['salle_id']] : 'Inconnu';
                 $type_seance = isset($course['type_seance']) ? $course['type_seance'] : 'Inconnu';
                 $year_class = '';
-                    switch ($group_info['year']) {
-                        case '1er':
-                            $year_class = 'year-1';
-                            break;
-                        case '2ème':
-                            $year_class = 'year-2';
-                            break;
-                        case '3ème':
-                            $year_class = 'year-3';
-                            break;
-                        case '4ème':
-                            $year_class = 'year-4';
-                            break;
-                        case '5ème':
-                            $year_class = 'year-5';
-                            break;
-                    }
+                switch ($group_info['year']) {
+                    case '1er':
+                        $year_class = 'year-1';
+                        break;
+                    case '2ème':
+                        $year_class = 'year-2';
+                        break;
+                    case '3ème':
+                        $year_class = 'year-3';
+                        break;
+                    case '4ème':
+                        $year_class = 'year-4';
+                        break;
+                    case '5ème':
+                        $year_class = 'year-5';
+                        break;
+                }
 
                 // Display information based on the year
                 if (in_array($group_info['year'], ['1er', '2ème', '3ème'])) {
@@ -270,7 +305,7 @@ foreach ($days as $day) {
                 } else {
                     $group_display = $group_info['name'];
                 }
-                
+
                 echo "<div class='course $year_class'>
                         <span>$group_display</span><br><hr>
                         <span>$subject_name ". " - " . " $type_seance </span><br><hr>
@@ -290,20 +325,48 @@ echo "</tbody>
     </table>
 </div>
 </div>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.2/jspdf.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js'></script>
 <script>
 function saveAsPDF() {
-    html2canvas(document.getElementById('schedule-content'), {
-        onrendered: function(canvas) {
-            var imgData = canvas.toDataURL('image/png');
-            var doc = new jsPDF('landscape');
-            doc.addImage(imgData, 'PNG', 20, 20, 255, 160);
-            doc.save('schedule.pdf');
-        }
-    });
+    const element = document.getElementById('schedule-content');
+    const opt = {
+        margin:[150, 0.5, 0.5, 0.5],
+        filename: 'schedule.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 3, scrollX: 0, scrollY: 0 },  // Increased scale for better quality
+        jsPDF: { unit: 'px', format: [1980, 1020], orientation: 'landscape' },  // Increased dimensions
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    const img = new Image();
+    img.src = '../../image/ENCG-BM_logo_header.png';
+    img.onload = function () {
+        html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
+            pdf.addImage(img, 'PNG', 30, 30, 350, 100);
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const lines = [
+                'Université Sultan Moulay Slimane',
+                'École Nationale de Commerce et de Gestion',
+                'Beni Mellal'
+            ];
+
+            pdf.setFontSize(18);
+            pdf.setFont('helvetica', 'bold');
+
+            // Calculate the initial y position for the first line of text
+            let yPosition = 50;
+            lines.forEach((line) => {
+                pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 25; // Adjust the spacing between lines
+            });
+
+            pdf.save(opt.filename);
+        });
+    };
 }
+
 </script>
 </body>
 </html>";
-?>
+

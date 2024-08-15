@@ -55,7 +55,31 @@
 
                     <label for="Organizer">Organisateur :</label>
                     <input type="text" id="Organizer" name="Organizer"><br><br>
+                    <label for="Semester">Semestre :</label>
+                    
+<select id="Semester" name="Semester">
+    <option value="">-</option>
+    <?php
+    include '../db/db_connect.php';
 
+    // Query to fetch semesters
+    $query = "SELECT id, name FROM semesters"; // Update 'semesters' with your actual table name
+    $result_semesters = $conn->query($query);
+
+    // Check if the query was successful
+    if ($result_semesters && $result_semesters->num_rows > 0) {
+        // Loop through the fetched semesters and create option elements
+        while ($row = $result_semesters->fetch_assoc()) {
+            echo '<option value="' . $row['id'] . '">' . $row['name'] . '</option>';
+        }
+    } else {
+        echo '<option value="">Aucun semestre disponible</option>';
+    }
+
+    // Close the database connection
+    $conn->close();
+    ?>
+</select><br><br>
                     <button type="submit">Suivant</button>
                 </form>
             </div>

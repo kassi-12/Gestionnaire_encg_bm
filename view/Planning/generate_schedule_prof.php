@@ -61,6 +61,54 @@ while ($row = $result_reservation->fetch_assoc()) {
     $salle_ids[] = $row['salle_id'];
 }
 
+// Retrieve reservation data and necessary IDs
+while ($row = $result_reservation->fetch_assoc()) {
+    $day = strtolower($row['jour_par_semaine']);
+    $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
+    $salle_id = $row['salle_id'];
+    $reservation_id = $row['id']; // Ensure reservation_id is set correctly
+    $type_seance = $row['type_seance'];
+
+    // Check for status in `rapport`
+    $sql_rapport = "SELECT statut FROM rapport WHERE reservation_id = $reservation_id AND rapport_date BETWEEN '$date_from' AND '$date_to'";
+    $result_rapport = $conn->query($sql_rapport);
+    if ($result_rapport->num_rows > 0) {
+        $type_seance = 'Annulé';
+    }
+
+    // Check for status in `rattrapage`
+    $sql_rattrapage = "SELECT rattrapage_date, start_time, end_time, salle_id 
+                       FROM rattrapage 
+                       WHERE reservation_id = $reservation_id 
+                       AND DATE(rattrapage_date) BETWEEN DATE('$date_from') AND DATE('$date_to')";
+    $result_rattrapage = $conn->query($sql_rattrapage);
+
+    if ($result_rattrapage->num_rows > 0) {
+        $row_rattrapage = $result_rattrapage->fetch_assoc();
+        $type_seance = 'Rattrapage';  // Set type_seance to 'Rattrapage'
+        $time_slot = $row_rattrapage['start_time'] . ' - ' . $row_rattrapage['end_time'];
+        $salle_id = $row_rattrapage['salle_id'];  // Update salle_id based on rattrapage if needed
+
+        // Update the day based on the rattrapage_date
+        $day_of_week_english = strtolower(date('l', strtotime($row_rattrapage['rattrapage_date'])));
+        $day = $english_to_french_days[$day_of_week_english];
+    }
+
+    // Store the schedule
+    $schedule[$day][$salle_id][$time_slot][] = [
+        'group_id' => $row['group_id'],
+        'subject_id' => $row['subject_id'],
+        'professeur_id' => $row['professeur_id'],
+        'type_seance' => $type_seance  // This will now be 'Rattrapage' if applicable
+    ];
+    
+    // Accumulate IDs for subsequent queries
+    $group_ids[] = $row['group_id'];
+    $subject_ids[] = $row['subject_id'];
+    $professor_ids[] = $row['professeur_id'];
+    $salle_ids[] = $row['salle_id'];
+}
+
 
 
 // Eliminate duplicate IDs
@@ -298,18 +346,45 @@ echo "</tbody>
     </table>
 </div>
 </div>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.2/jspdf.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js'></script>
 <script>
 function saveAsPDF() {
-    html2canvas(document.getElementById('schedule-content'), {
-        onrendered: function(canvas) {
-            var imgData = canvas.toDataURL('image/png');
-            var doc = new jsPDF('landscape');
-            doc.addImage(imgData, 'PNG', 20, 20, 255, 160);
-            doc.save('schedule.pdf');
-        }
-    });
+    const element = document.getElementById('schedule-content');
+    const opt = {
+        margin:[150, 0.5, 0.5, 0.5],
+        filename: 'schedule.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 3, scrollX: 0, scrollY: 0 },  // Increased scale for better quality
+        jsPDF: { unit: 'px', format: [1980, 1020], orientation: 'landscape' },  // Increased dimensions
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    const img = new Image();
+    img.src = '../../image/ENCG-BM_logo_header.png';
+    img.onload = function () {
+        html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
+            pdf.addImage(img, 'PNG', 30, 30, 350, 100);
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const lines = [
+                'Université Sultan Moulay Slimane',
+                'École Nationale de Commerce et de Gestion',
+                'Beni Mellal'
+            ];
+
+            pdf.setFontSize(18);
+            pdf.setFont('helvetica', 'bold');
+
+            // Calculate the initial y position for the first line of text
+            let yPosition = 50;
+            lines.forEach((line) => {
+                pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 25; // Adjust the spacing between lines
+            });
+
+            pdf.save(opt.filename);
+        });
+    };
 }
 </script>
 </body>

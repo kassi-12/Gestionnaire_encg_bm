@@ -7,12 +7,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $selected_times = $_POST['selected_times'] ?? [];
     $total_capacity = $_POST['total_capacity'] ?? '';
     $niveau = $_POST['Niveau'] ?? '';
+    $filieres = $_POST['Filiere'] ?? array();
     $groupName = $_POST['GroupName'] ?? '';
     $semester = $_POST['Semester'] ?? '';
     $room_type = $_POST['room-type'] ?? '';
     $date = $_POST['date_debut'] ?? '';
     $reservation_ids = $_POST['reservation_id'] ?? [];
-
+    echo "Filiere : " . implode(', ', array_map('htmlspecialchars', $filieres)) . "<br>";
     // Validate the input data
     if (empty($selected_rooms) || empty($selected_times) || empty($total_capacity) || empty($reservation_ids)) {
         die("Tous les champs sont obligatoires.");
@@ -150,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </span>
             </div>
 
-            <form action="confirm_selection.php" method="POST">
+            <form action="confirm_reservation.php" method="POST">
                 <input type="hidden" name="Niveau" value="<?php echo htmlspecialchars($niveau); ?>">
                 <input type="hidden" name="GroupName" value="<?php echo htmlspecialchars($groupName); ?>">
                 <input type="hidden" name="Semester" value="<?php echo htmlspecialchars($semester); ?>">
@@ -160,6 +161,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="hidden" name="selected_rooms" value="<?php echo htmlspecialchars(implode(',', $selected_rooms)); ?>">
                 <input type="hidden" name="selected_times" value="<?php echo htmlspecialchars(implode(',', $selected_times)); ?>">
                 <input type="hidden" name="reservation_ids" value="<?php echo htmlspecialchars(implode(',', $reservation_ids)); ?>">
+                <?php
+                foreach ($filieres as $filiere) {
+                    echo '<input type="hidden" name="Filiere[]" value="' . htmlspecialchars($filiere) . '">';
+                }
+                ?>
                 <button type="submit">Confirmer</button>
             </form>
 

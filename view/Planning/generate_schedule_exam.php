@@ -2,164 +2,100 @@
 include '../db/db_connect.php';
 
 // Retrieve semester and room types from form submission
-$semester = $_POST['Semester'] ?? '';
-$date_from = $_POST['date_from'] ?? '';
-$date_to = $_POST['date_to'] ?? '';
-$roomTypes = $_POST['room-type'] ?? [];
+// $semester = $_POST['Semester'] ?? '';
+// $roomTypes = $_POST['room-type'] ?? [];
 
+// // Escape the room types to prevent SQL injection
+// $roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
 
-$english_to_french_days = [
-    'monday'    => 'lundi',
-    'tuesday'   => 'mardi',
-    'wednesday' => 'mercredi',
-    'thursday'  => 'jeudi',
-    'friday'    => 'vendredi',
-    'saturday'  => 'samedi',
-    'sunday'    => 'dimanche'
-];
-
-$date_mapping = [];
-
-// Convert strings to DateTime objects
-$start_date = new DateTime($date_from);
-$end_date = new DateTime($date_to);
-
-// Iterate through the date range
-while ($start_date <= $end_date) {
-    $day_of_week_english = strtolower($start_date->format('l')); // Get the day name in English
-    $day_of_week_french = $english_to_french_days[$day_of_week_english]; // Convert to French
-    $date_mapping[$day_of_week_french] = $start_date->format('m/d'); // Store the date for each day in French
-    $start_date->modify('+1 day'); // Move to the next day
-}
-
-// Escape the room types to prevent SQL injection
-$roomTypesStr = implode("','", array_map([$conn, 'real_escape_string'], $roomTypes));
-
-// Check if the "Tous les Semestres" option is selected
-if ($semester === 'all') {
+// // Check if the "Tous les Semestres" option is selected
+// if ($semester === 'all') {
     // Query reservations for all semesters
     $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                        FROM reservation WHERE type_seance IN ('$roomTypesStr')";
-} else {
-    // Query reservations for the selected semester
-    $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                        FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
-}
+                        FROM reservation ";
+// } else {
+//     // Query reservations for the selected semester
+//     $sql_reservation = "SELECT jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
+//                         FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
+// }
 
 $result_reservation = $conn->query($sql_reservation);
 
-// Initialize arrays to store data
-$schedule = [];
-$group_ids = [];
-$subject_ids = [];
-$professor_ids = [];
-$salle_ids = [];
+// // Initialize arrays to store data
+// $schedule = [];
+// $group_ids = [];
+// $subject_ids = [];
+// $professor_ids = [];
+// $salle_ids = [];
 
-// Query reservations for all semesters
-if ($semester === 'all') {
-    $sql_reservation = "SELECT id, jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                        FROM reservation WHERE type_seance IN ('$roomTypesStr')";
-} else {
-    $sql_reservation = "SELECT id, jour_par_semaine, start_time, end_time, group_id, subject_id, professeur_id, salle_id, type_seance
-                        FROM reservation WHERE semester_id = '$semester' AND type_seance IN ('$roomTypesStr')";
-}
+// // Retrieve reservation data and necessary IDs
+// while ($row = $result_reservation->fetch_assoc()) {
+//     $day = strtolower($row['jour_par_semaine']);
+//     $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
+//     $salle_id = $row['salle_id'];
+//     $schedule[$day][$salle_id][$time_slot][] = [
+//         'group_id' => $row['group_id'],
+//         'subject_id' => $row['subject_id'],
+//         'professeur_id' => $row['professeur_id'],
+//         'type_seance' => $row['type_seance']
+//     ];
 
-$result_reservation = $conn->query($sql_reservation);
-
-// Initialize arrays to store data
-$schedule = [];
-$group_ids = [];
-$subject_ids = [];
-$professor_ids = [];
-$salle_ids = [];
-
-// Retrieve reservation data and necessary IDs
-while ($row = $result_reservation->fetch_assoc()) {
-    $day = strtolower($row['jour_par_semaine']);
-    $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
-    $salle_id = $row['salle_id'];
-    $reservation_id = $row['id']; // Ensure reservation_id is set correctly
-    $type_seance = $row['type_seance'];
-
-    // Check for status in `rapport`
-    $sql_rapport = "SELECT statut FROM rapport WHERE reservation_id = $reservation_id AND rapport_date BETWEEN '$date_from' AND '$date_to' AND statut = 'En attente'";
-    $result_rapport = $conn->query($sql_rapport);
-    if ($result_rapport->num_rows > 0) {
-        $type_seance = 'Annulé';
-    }
-
-    // Check for status in `rattrapage`
-    $sql_rattrapage = "SELECT id FROM rattrapage WHERE reservation_id = $reservation_id AND rattrapage_date BETWEEN '$date_from' AND '$date_to'";
-    $result_rattrapage = $conn->query($sql_rattrapage);
-    if ($result_rattrapage->num_rows > 0) {
-        $type_seance = 'Rattrapage';
-    }
-
-    $schedule[$day][$salle_id][$time_slot][] = [
-        'group_id' => $row['group_id'],
-        'subject_id' => $row['subject_id'],
-        'professeur_id' => $row['professeur_id'],
-        'type_seance' => $type_seance
-    ];
-
-    // Accumulate IDs for subsequent queries
-    $group_ids[] = $row['group_id'];
-    $subject_ids[] = $row['subject_id'];
-    $professor_ids[] = $row['professeur_id'];
-    $salle_ids[] = $row['salle_id'];
-}
-
+//     // Accumulate IDs for subsequent queries
+//     $group_ids[] = $row['group_id'];
+//     $subject_ids[] = $row['subject_id'];
+//     $professor_ids[] = $row['professeur_id'];
+//     $salle_ids[] = $row['salle_id'];
+// }
 
 // Eliminate duplicate IDs
-$group_ids = array_unique($group_ids);
-$subject_ids = array_unique($subject_ids);
-$professor_ids = array_unique($professor_ids);
-$salle_ids = array_unique($salle_ids);
+// $group_ids = array_unique($group_ids);
+// $subject_ids = array_unique($subject_ids);
+// $professor_ids = array_unique($professor_ids);
+// $salle_ids = array_unique($salle_ids);
 
+// Retrieve control details from controle table
+$sql_controle = "SELECT e.id, e.reservation_id, e.exam_date, e.start_time, e.end_time, r.group_id, r.salle_id, r.professeur_id, r.semester_id, r.subject_id, r.type_seance 
+                 FROM exam e
+                 JOIN reservation r ON e.reservation_id = r.id";
+$result_controle = $conn->query($sql_controle);
 
-// // Retrieve control details from controle table
-// $sql_controle = "SELECT c.id, c.reservation_id, c.controle_date, c.start_time, c.end_time, r.group_id, r.salle_id, r.professeur_id, r.semester_id, r.subject_id, r.type_seance 
-//                  FROM controle c
-//                  JOIN reservation r ON c.reservation_id = r.id";
-// $result_controle = $conn->query($sql_controle);
+while ($row = $result_controle->fetch_assoc()) {
+    $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
+    $formatter->setPattern('EEEE');
+    $day_of_week = strtolower($formatter->format(new DateTime($row['exam_date'])));
+    $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
+    $controle_id = $row['id'];
+    $salle_id = $row['salle_id'];
 
-// while ($row = $result_controle->fetch_assoc()) {
-//     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
-//     $formatter->setPattern('EEEE');
-//     $day_of_week = strtolower($formatter->format(new DateTime($row['controle_date'])));
-//     $time_slot = $row['start_time'] . ' - ' . $row['end_time'];
-//     $controle_id = $row['id'];
-//     $salle_id = $row['salle_id'];
+    $sql_salles_controle = "SELECT se.salle_id, s.name, s.capacity_exam 
+                            FROM salles_exam se
+                            JOIN salles s ON se.salle_id = s.id
+                            WHERE se.exam_id = ?";
+    $stmt_salles_controle = $conn->prepare($sql_salles_controle);
+    $stmt_salles_controle->bind_param("i", $controle_id);
+    $stmt_salles_controle->execute();
+    $result_salles_controle = $stmt_salles_controle->get_result();
 
-//     $sql_salles_controle = "SELECT sc.salle_id, s.name, s.capacity_exam 
-//                             FROM salles_controle sc
-//                             JOIN salles s ON sc.salle_id = s.id
-//                             WHERE sc.controle_id = ?";
-//     $stmt_salles_controle = $conn->prepare($sql_salles_controle);
-//     $stmt_salles_controle->bind_param("i", $controle_id);
-//     $stmt_salles_controle->execute();
-//     $result_salles_controle = $stmt_salles_controle->get_result();
+    while ($salle_row = $result_salles_controle->fetch_assoc()) {
+        $salle_id = $salle_row['salle_id'];
+        $salles[$salle_id] = [
+            'name' => $salle_row['name'],
+            'capacity_exam' => $salle_row['capacity_exam']
+        ];
 
-//     while ($salle_row = $result_salles_controle->fetch_assoc()) {
-//         $salle_id = $salle_row['salle_id'];
-//         $salles[$salle_id] = [
-//             'name' => $salle_row['name'],
-//             'capacity_exam' => $salle_row['capacity_exam']
-//         ];
-
-//         $schedule[$day_of_week][$salle_id][$time_slot][] = [
-//             'group_id' => $row['group_id'],
-//             'subject_id' => $row['subject_id'],
-//             'professeur_id' => $row['professeur_id'],
-//             'semester_id' => $row['semester_id'],
-//             'type_seance' => 'controle' // Force type_seance to 'controle'
-//         ];
-//         $group_ids[] = $row['group_id'];
-//         $subject_ids[] = $row['subject_id'];
-//         $professor_ids[] = $row['professeur_id'];
-//         $salle_ids[] = $salle_id;
-//     }
-// }
+        $schedule[$day_of_week][$salle_id][$time_slot][] = [
+            'group_id' => $row['group_id'],
+            'subject_id' => $row['subject_id'],
+            'professeur_id' => $row['professeur_id'],
+            'semester_id' => $row['semester_id'],
+            'type_seance' => 'exam' // Force type_seance to 'controle'
+        ];
+        $group_ids[] = $row['group_id'];
+        $subject_ids[] = $row['subject_id'];
+        $professor_ids[] = $row['professeur_id'];
+        $salle_ids[] = $salle_id;
+    }
+}
 
 // Retrieve group names
 if (!empty($group_ids)) {
@@ -241,7 +177,9 @@ echo "<!DOCTYPE html>
     <link rel='stylesheet' href='../../assets/styles.css'>
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css'>
     <style>
-   
+    .main-content {
+    margin-top: 20px;
+}
 table {
     .main-content {
     margin-top: 20px;
@@ -311,20 +249,11 @@ th br {
             <a href='../reservation/Reserve.php'><i class='fas fa-calendar-check'></i> Réservation</a>
             <ul class='dropdown-content'>
                 <li><a href='../reservation/Evenement.php'>Événement</a></li>
-                <li><a href='../reservation/normal.php'>Cours</a></li>
-                <li><a href='../controle/reserve_controle.php'>Controle/Exam</a></li>
+                <li><a href='../reservation/normal.php'>Cours/Exam</a></li>
             </ul>
         </li>
-        <li><a href='../rapport/rapports.php'><i class='fas fa-file-alt'></i> Reporter</a></li>
-        <li class='dropdown'>
-            <a href='../planning/planning.php'><i class='fas fa-calendar'></i> Planning</a>
-            <ul class='dropdown-content'>
-                <li><a href='../planning/evenement.php'>Événement</a></li>
-                <li><a href='../planning/controle.php'>Controle</a></li>
-                <li><a href='../planning/generate_schedule_exam.php'>Exam</a></li>
-            </ul>
-        </li>
-        
+        <li><a href='../rapport/rapports.php'><i class='fas fa-file-alt'></i> Rapport</a></li>
+        <li><a href='../planning/planning.php'><i class='fas fa-calendar'></i> Planning</a></li>
         <li><a href='#'><i class='fas fa-sign-out-alt'></i> Déconnexion</a></li>
     </ul>
 </div>
@@ -356,15 +285,13 @@ $time_slots = [
 
 foreach ($days as $day) {
     $first_time_slot = true;
-    $date = isset($date_mapping[$day]) ? $date_mapping[$day] : 'Unknown Date'; // Get the date for the current day
-
     foreach ($time_slots as $slot_key => $slot_label) {
         if ($day === 'samedi' && in_array($slot_key, ['14:00:00 - 15:30:00', '15:45:00 - 17:15:00'])) {
             continue;
         }
         echo "<tr>";
         if ($first_time_slot) {
-            echo "<td class='day' rowspan='4'>$day - $date </td>";
+            echo "<td class='day' rowspan='4'>$day</td>";
             $first_time_slot = false;
         }
         echo "<td class='day'>$slot_label</td>";
@@ -437,7 +364,7 @@ function saveAsPDF() {
         filename: 'schedule.pdf',
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 3, scrollX: 0, scrollY: 0 },  // Increased scale for better quality
-        jsPDF: { unit: 'px', format: [5000, 2140], orientation: 'landscape' },  // Increased dimensions
+        jsPDF: { unit: 'px', format: [1980, 1200], orientation: 'landscape' },  // Increased dimensions
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
@@ -468,6 +395,7 @@ function saveAsPDF() {
         });
     };
 }
+
 </script>
 </body>
 </html>";

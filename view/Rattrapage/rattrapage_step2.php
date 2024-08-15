@@ -38,12 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
     $formatter->setPattern('EEEE');
     $day_of_week = $formatter->format(strtotime($date));
-    
-    
-    if ($room_type == 'exam' || $room_type == 'controle') {
-        $group_size = ceil($group_size / 2);
-    }
-    
+
     // Fetch rooms that match the requirements
     $capacity_column = ($room_type == 'exam' || $room_type == 'controle') ? 'capacity_exam' : 'capacity';
     $sql_rooms = "SELECT id, name, $capacity_column as capacity FROM salles 
@@ -57,23 +52,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         die("Erreur lors de la récupération des salles : " . $conn->error);
     }
 
-    // Fetch existing reservations for the selected day
+    $is_odd_semester = in_array($semester_id, [1, 3, 5]);
+    $semester_condition = $is_odd_semester ? 'IN (1, 3, 5)' : 'IN (2, 4, 6)';
+
+    // Fetch existing reservations for the selected day and appropriate semesters
     $sql_reservations = "SELECT salle_id, start_time, end_time FROM reservation 
                          WHERE jour_par_semaine = ? 
-                         AND semester_id = ? 
+                         AND semester_id $semester_condition 
                          AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= ?)";
     $stmt = $conn->prepare($sql_reservations);
-    $stmt->bind_param("sii", $day_of_week, $semester_id, $group_size);
+    $stmt->bind_param("si", $day_of_week, $group_size);
     $stmt->execute();
     $result_reservations = $stmt->get_result();
+
+    $sql_controle = "SELECT sc.salle_id, c.start_time, c.end_time FROM controle c
+                     JOIN salles_controle sc ON c.id = sc.controle_id
+                     WHERE c.controle_date = ?";
+    $stmt_controle = $conn->prepare($sql_controle);
+    $stmt_controle->bind_param("s", $date);
+    $stmt_controle->execute();
+    $result_controle = $stmt_controle->get_result();
+
+    // Fetch reservations from rattrapage table
+    $sql_rattrapage = "SELECT salle_id, start_time, end_time FROM rattrapage 
+                       WHERE rattrapage_date = ?";
+    $stmt_rattrapage = $conn->prepare($sql_rattrapage);
+    $stmt_rattrapage->bind_param("s", $date);
+    $stmt_rattrapage->execute();
+    $result_rattrapage = $stmt_rattrapage->get_result();
+
+    // Fetch reservations from evenement table
+    $sql_evenement = "SELECT salle_id, start_time, end_time FROM evenement 
+                      WHERE event_date = ?";
+    $stmt_evenement = $conn->prepare($sql_evenement);
+    $stmt_evenement->bind_param("s", $date);
+    $stmt_evenement->execute();
+    $result_evenement = $stmt_evenement->get_result();
+
+    if (!$result_reservations) {
+        die("Erreur lors de la récupération des réservations : " . $conn->error);
+    }
 
     $reservations = [];
     while ($row = $result_reservations->fetch_assoc()) {
         $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
     }
+    while ($row = $result_controle->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    while ($row = $result_rattrapage->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    while ($row = $result_evenement->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
 
     // Fetch reservation ID from the rapport table
-    $sql_rapport = "SELECT reservation_id FROM rapport WHERE rapport_date = ?";
+    $sql_rapport = "SELECT reservation_id FROM rapport WHERE rapport_date = ? and statut = 'en attente'";
     $stmt = $conn->prepare($sql_rapport);
     $stmt->bind_param("s", $date);  // Use "s" for string (date is a string in SQL context)
     $stmt->execute();
@@ -105,21 +140,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 $time_slots = [
     'Lundi-Jeudi' => [
-        '09:00-10:30',
-        '10:45-12:15',
-        '14:00-15:30',
-        '15:45-17:15'
-    ],
-    'Vendredi' => [
-        '09:00-10:30',
-        '10:45-12:15',
-        '15:00-16:30',
-        '16:45-18:15'
-    ],
-    'Samedi' => [
-        '09:00-10:30',
-        '10:45-12:15'
-    ]
+            '09:00-10:30',
+            '10:45-12:15',
+            '14:00-15:30',
+            '15:45-17:15'
+        ],
+        'Vendredi' => [
+            '09:00-10:30',
+            '10:45-12:15',
+            '14:00-15:30',
+            '15:45-17:15'
+        ],
+        'Samedi' => [
+            '09:00-10:30',
+            '10:45-12:15'
+        ]
 ];
 
 function generate_html_time_slots($time_slots, $reservations, $room_id, $priority_start_time = null, $priority_end_time = null) {
@@ -157,6 +192,7 @@ function generate_html_time_slots($time_slots, $reservations, $room_id, $priorit
     return $html;
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="fr">

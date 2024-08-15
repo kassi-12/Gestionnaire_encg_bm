@@ -16,6 +16,8 @@
                 window.location.href = "group.php";
             } else if (selectedOption === "Professeur") {
                 window.location.href = "professeur.php";
+     
+                
             } else if (selectedOption === "Tous") {
                 window.location.href = "all.php";
             }
@@ -43,7 +45,7 @@
             <a href="../reservation/Reserve.php"><i class="fas fa-calendar-check"></i> Réservation</a> <!-- Changed icon to fa-calendar-check -->
             <ul class="dropdown-content">
                 <li><a href="../reservation/Evenement.php">Événement</a></li>
-                <li><a href="../reservation/normal.php">Cours/Exam</a></li>
+                <li><a href="../reservation/normal.php">Cours</a></li>
             </ul>
         </li>
         <li><a href="../rapport/rapports.php"><i class="fas fa-file-alt"></i> Rapport</a></li> <!-- Changed icon to fa-file-alt -->
@@ -62,7 +64,9 @@
                     <label for="GroupNameType">Planning Pour :</label>
                     <select id="GroupNameType" name="GroupNameType">
                         <option value="">-</option>
+                
                         <option value="Salle">Salle</option>
+                        
                         <option value="Group">Group</option>
                         <option value="Professeur">Professeur</option>
                         <option value="Tous">Tous</option>

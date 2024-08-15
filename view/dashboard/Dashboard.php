@@ -7,6 +7,7 @@ session_start();
 // Call the archiving function once per session
 if (!isset($_SESSION['last_archived']) || (time() - $_SESSION['last_archived']) > 86400) { // 86400 seconds = 24 hours
     archivePastRattrapages($conn);
+    archivePastControles($conn);
     $_SESSION['last_archived'] = time();
 }
 

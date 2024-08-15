@@ -2,14 +2,14 @@
 include '../db/db_connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $niveau = isset($_POST['Niveau']) ? $_POST['Niveau'] : '';
-    $group_name = isset($_POST['GroupName']) ? $_POST['GroupName'] : '';
-    $filiere = isset($_POST['Filiere']) ? $_POST['Filiere'] : '';
-    $semester = isset($_POST['Semester']) ? $_POST['Semester'] : '';
-    $room_type = isset($_POST['room-type']) ? $_POST['room-type'] : '';
-    $subject_id = isset($_POST['Matier']) ? $_POST['Matier'] : '';
-    $prof_id = isset($_POST['Prof']) ? $_POST['Prof'] : '';
-    $date = isset($_POST['date_debut']) ? $_POST['date_debut'] : '';
+    $niveau = $_POST['Niveau'] ?? '';
+    $group_name = $_POST['GroupName'] ?? '';
+    $filiere = $_POST['Filiere'] ?? '';
+    $semester = $_POST['Semester'] ?? '';
+    $room_type = $_POST['room-type'] ?? '';
+    $subject_id = $_POST['Matier'] ?? '';
+    $prof_id = $_POST['Prof'] ?? '';
+    $date = $_POST['date_debut'] ?? '';
 
     // Use IntlDateFormatter to get the day of the week in French
     $formatter = new IntlDateFormatter('fr_FR', IntlDateFormatter::FULL, IntlDateFormatter::NONE);
@@ -17,13 +17,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $day_of_week = $formatter->format(strtotime($date)); 
 
     // Get the number of students in the group
-    $sql_group = "SELECT nombre FROM grp WHERE name = '$group_name' AND year = '$niveau' AND (extra_info = '$filiere' OR filiere = '$filiere')";
-    $result_group = $conn->query($sql_group);
-    if (!$result_group) {
+    $sql_group = "SELECT nombre FROM grp WHERE name = ? AND year = ? AND (extra_info = ? OR filiere = ?)";
+    $stmt_group = $conn->prepare($sql_group);
+    $stmt_group->bind_param("ssss", $group_name, $niveau, $filiere, $filiere);
+    $stmt_group->execute();
+    $result_group = $stmt_group->get_result();
+
+    if (!$result_group || $result_group->num_rows === 0) {
         die("Erreur lors de la récupération du groupe : " . $conn->error);
     }
+
     $group = $result_group->fetch_assoc();
-    
     $group_size = $group['nombre'];
 
     if ($group_size == 0) {
@@ -32,61 +36,118 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $capacity_column = ($room_type == 'exam' || $room_type == 'controle') ? 'capacity_exam' : 'capacity';
     $sql_rooms = "SELECT id, name, $capacity_column as capacity FROM salles 
-                  WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= $group_size";
-    $result_rooms = $conn->query($sql_rooms);
+                  WHERE FIND_IN_SET(?, room_type) AND $capacity_column >= ?";
+    $stmt_rooms = $conn->prepare($sql_rooms);
+    $stmt_rooms->bind_param("si", $room_type, $group_size);
+    $stmt_rooms->execute();
+    $result_rooms = $stmt_rooms->get_result();
 
     if (!$result_rooms) {
         die("Erreur lors de la récupération des salles : " . $conn->error);
     }
 
+    $is_odd_semester = in_array($semester, [1, 3, 5]);
+    $semester_condition = $is_odd_semester ? 'IN (1, 3, 5)' : 'IN (2, 4, 6)';
+    
+    // Fetch existing reservations for the selected day and appropriate semesters
     $sql_reservations = "SELECT salle_id, start_time, end_time FROM reservation 
-                         WHERE jour_par_semaine = '$day_of_week' 
-                         AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET('$room_type', room_type) AND $capacity_column >= $group_size)";
-    $result_reservations = $conn->query($sql_reservations);
-
-    if (!$result_reservations) {
-        die("Erreur lors de la récupération des réservations : " . $conn->error);
-    }
-
+                         WHERE jour_par_semaine = ? 
+                         AND semester_id $semester_condition 
+                         AND salle_id IN (SELECT id FROM salles WHERE FIND_IN_SET(?, room_type) AND $capacity_column >= ?)";
+    $stmt = $conn->prepare($sql_reservations);
+    $stmt->bind_param("ssi", $day_of_week, $room_type, $group_size);
+    $stmt->execute();
+    $result_reservations = $stmt->get_result();
+    
+    // Fetch reservations from controle table
+    $sql_controle = "SELECT sc.salle_id, c.start_time, c.end_time FROM controle c
+                     JOIN salles_controle sc ON c.id = sc.controle_id
+                     WHERE c.controle_date = ?";
+    $stmt_controle = $conn->prepare($sql_controle);
+    $stmt_controle->bind_param("s", $date);
+    $stmt_controle->execute();
+    $result_controle = $stmt_controle->get_result();
+    
+    // Fetch reservations from rattrapage table
+    $sql_rattrapage = "SELECT salle_id, start_time, end_time FROM rattrapage 
+                       WHERE rattrapage_date = ?";
+    $stmt_rattrapage = $conn->prepare($sql_rattrapage);
+    $stmt_rattrapage->bind_param("s", $date);
+    $stmt_rattrapage->execute();
+    $result_rattrapage = $stmt_rattrapage->get_result();
+    
+    // Fetch reservations from evenement table
+    $sql_evenement = "SELECT salle_id, start_time, end_time FROM evenement 
+                      WHERE event_date = ?";
+    $stmt_evenement = $conn->prepare($sql_evenement);
+    $stmt_evenement->bind_param("s", $date);
+    $stmt_evenement->execute();
+    $result_evenement = $stmt_evenement->get_result();
+    
+    // Fetch reservations in attente from rapport table
+    $sql_rapport = "SELECT res.salle_id, res.start_time, res.end_time FROM rapport r
+                    JOIN reservation res ON r.reservation_id = res.id
+                    WHERE r.statut = 'En attente' AND r.rapport_date = ?";
+    $stmt_rapport = $conn->prepare($sql_rapport);
+    $stmt_rapport->bind_param("s", $date);
+    $stmt_rapport->execute();
+    $result_rapport = $stmt_rapport->get_result();
+    
+    // Store all reservations from the different queries in an associative array
     $reservations = [];
     while ($row = $result_reservations->fetch_assoc()) {
         $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
     }
-}
+    while ($row = $result_controle->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    while ($row = $result_rattrapage->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    while ($row = $result_evenement->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    while ($row = $result_rapport->fetch_assoc()) {
+        $reservations[$row['salle_id']][] = ['start' => $row['start_time'], 'end' => $row['end_time']];
+    }
+    
+    $time_slots = [
+        'Lundi-Vendredi' => [
+            '09:00-10:30',
+            '10:45-12:15',
+            '14:00-15:30',
+            '15:45-17:15'
+        ],
+        'Samedi' => [
+            '09:00-10:30',
+            '10:45-12:15'
+        ]
+    ];
 
-$time_slots = [
-    'Lundi-Vendredi' => [
-        '09:00-10:30',
-        '10:45-12:15',
-        '14:00-15:30',
-        '15:45-17:15'
-    ],
-    'Samedi' => [
-        '09:00-10:30',
-        '10:45-12:15'
-    ]
-];
-
-function generate_html_time_slots($time_slots, $reservations, $room_id) {
-    $html = '<select class="time-slot-select" data-room-id="' . htmlspecialchars($room_id) . '">';
-    foreach ($time_slots as $slot) {
-        list($start_time, $end_time) = explode('-', $slot);
-        $is_reserved = false;
-        if (isset($reservations[$room_id])) {
-            foreach ($reservations[$room_id] as $reservation) {
-                if (strtotime($start_time) >= strtotime($reservation['start']) && strtotime($start_time) < strtotime($reservation['end'])) {
-                    $is_reserved = true;
-                    break;
+    function generate_html_time_slots($time_slots, $reservations, $room_id) {
+        $html = '<select class="time-slot-select" data-room-id="' . htmlspecialchars($room_id) . '">';
+        foreach ($time_slots as $slot) {
+            list($start_time, $end_time) = explode('-', $slot);
+            $is_reserved = false;
+            if (isset($reservations[$room_id])) {
+                foreach ($reservations[$room_id] as $reservation) {
+                    // Check if the slot overlaps with any reservation
+                    if ((strtotime($start_time) < strtotime($reservation['end'])) && (strtotime($end_time) > strtotime($reservation['start']))) {
+                        $is_reserved = true;
+                        break;
+                    }
                 }
             }
+            $option_style = $is_reserved ? 'class="reserved"' : '';
+            $html .= '<option value="' . $slot . '" ' . $option_style . '>' . $slot . '</option>';
         }
-        $option_style = $is_reserved ? 'class="reserved"' : '';
-        $html .= '<option value="' . $slot . '" ' . $option_style . '>' . $slot . '</option>';
+        $html .= '</select>';
+        return $html;
     }
-    $html .= '</select>';
-    return $html;
 }
 ?>
+
+
 
 <!DOCTYPE html>
 <html lang="fr">

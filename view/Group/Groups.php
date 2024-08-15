@@ -53,7 +53,23 @@ if (isset($_GET['edit'])) {
 
 $sql = "SELECT id, name, nombre, year, filiere, extra_info FROM grp";
 $groups = $conn->query($sql);
+// Fetching filieres
+$filiere_result = $conn->query("SELECT name FROM filiers");
+$filiere_options = [];
+if ($filiere_result->num_rows > 0) {
+    while ($row = $filiere_result->fetch_assoc()) {
+        $filiere_options[] = $row['name'];
+    }
+}
 
+// Fetching sections
+$section_result = $conn->query("SELECT name FROM sections");
+$section_options = [];
+if ($section_result->num_rows > 0) {
+    while ($row = $section_result->fetch_assoc()) {
+        $section_options[] = $row['name'];
+    }
+}
 $conn->close();
 ?>
 
@@ -153,21 +169,26 @@ $conn->close();
                 <option value="5ème" <?php echo $group['year'] == '5ème' ? 'selected' : ''; ?>>5ème Année</option>
             </select>
             <label for="filiere" id="filiere-label" style="display: <?php echo ($group['year'] == '4ème' || $group['year'] == '5ème') ? 'block' : 'none'; ?>;">Filière:</label>
-            <select id="filiere" name="filiere" style="display: <?php echo ($group['year'] == '4ème' || $group['year'] == '5ème') ? 'block' : 'none'; ?>;">
-                <option value="-" <?php echo $group['filiere'] == '-' ? 'selected' : ''; ?>>-</option>
-                <option value="Filiere1" <?php echo $group['filiere'] == 'Filiere1' ? 'selected' : ''; ?>>Filiere1</option>
-                <option value="Filiere2" <?php echo $group['filiere'] == 'Filiere2' ? 'selected' : ''; ?>>Filiere2</option>
+        <select id="filiere" name="filiere" style="display: <?php echo ($group['year'] == '4ème' || $group['year'] == '5ème') ? 'block' : 'none'; ?>;">
+            <option value="-" <?php echo $group['filiere'] == '-' ? 'selected' : ''; ?>>-</option>
+            <?php foreach ($filiere_options as $filiere): ?>
+                <option value="<?php echo htmlspecialchars($filiere); ?>" <?php echo $group['filiere'] == $filiere ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($filiere); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+
+        <div id="extra-info-section" style="display: <?php echo ($group['year'] == '1er' || $group['year'] == '2ème' || $group['year'] == '3ème') ? 'block' : 'none'; ?>;">
+            <label for="extra_info">Section Info:</label>
+            <select id="extra_info" name="extra_info">
+                <option value="-" <?php echo ($group['extra_info'] == '-') ? 'selected' : ''; ?>>-</option>
+                <?php foreach ($section_options as $section): ?>
+                    <option value="<?php echo htmlspecialchars($section); ?>" <?php echo $group['extra_info'] == $section ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($section); ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
-            <div id="extra-info-section" style="display: <?php echo ($group['year'] == '1er' || $group['year'] == '2ème' || $group['year'] == '3ème') ? 'block' : 'none'; ?>;">
-                <label for="extra_info">Section Info:</label>
-                <select id="extra_info" name="extra_info">
-                    <option value="-" <?php echo ($group['extra_info'] == '-') ? 'selected' : ''; ?>>-</option>
-                    <option value="Section A" <?php echo ($group['extra_info'] == 'Section A') ? 'selected' : ''; ?>>Section A</option>
-                    <option value="Section B" <?php echo ($group['extra_info'] == 'Section B') ? 'selected' : ''; ?>>Section B</option>
-                    <option value="Section A(GESTION)" <?php echo ($group['extra_info'] == 'Section A(GESTION)') ? 'selected' : ''; ?>>Section A(GESTION)</option>
-                    <option value="Section A(COMMERCE)" <?php echo ($group['extra_info'] == 'Section A(COMMERCE)') ? 'selected' : ''; ?>>Section A(COMMERCE)</option>
-                </select>
-            </div>
+        </div>
             <?php if ($edit_mode): ?>
                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($_GET['edit']); ?>">
                 <button type="submit" name="update_group">Update Group</button>

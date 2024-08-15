@@ -44,54 +44,59 @@
             <p class="required-fields">* Tous les champs sont obligatoires</p>
             
             <form action="generate_schedule_all.php" method="POST">
-                <label for="Semester">Semestre :</label>
-                <select id="Semester" name="Semester">
-                    <option value="">-</option>
-                    <option value="all">Tous les Semestres</option> <!-- Added option for all semesters -->
-                    <?php
-                    // Populate semester options
-                    include '../db/db_connect.php';
-                    $sql_semesters = "SELECT id, name FROM semesters";
-                    $result_semesters = $conn->query($sql_semesters);
-                    while ($row = $result_semesters->fetch_assoc()) {
-                        echo "<option value='" . htmlspecialchars($row['id']) . "'>" . htmlspecialchars($row['name']) . "</option>";
-                    }
-                    $conn->close();
-                    ?>
-                </select><br><br>
-                
-                <fieldset>
-                    <legend>Type de séance * :</legend>
-                    <div class="checkbox-group">
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="cours" name="room-type[]" value="cours">
-                            <label for="cours">Cours</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="td" name="room-type[]" value="TD">
-                            <label for="td">TD</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="tp" name="room-type[]" value="TP">
-                            <label for="tp">TP</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="controle" name="room-type[]" value="controle">
-                            <label for="controle">Contrôle</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="soutenance" name="room-type[]" value="soutenance">
-                            <label for="soutenance">Soutenance</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="exam" name="room-type[]" value="exam">
-                            <label for="exam">Examen</label>
-                        </div>
-                    </div>
-                </fieldset>
+    <!-- Existing Semester Dropdown -->
+    <label for="Semester">Semestre :</label>
+    <select id="Semester" name="Semester">
+        <option value="">-</option>
+        <option value="all">Tous les Semestres</option>
+        <?php
+        include '../db/db_connect.php';
+        $sql_semesters = "SELECT id, name FROM semesters";
+        $result_semesters = $conn->query($sql_semesters);
+        while ($row = $result_semesters->fetch_assoc()) {
+            echo "<option value='" . htmlspecialchars($row['id']) . "'>" . htmlspecialchars($row['name']) . "</option>";
+        }
+        $conn->close();
+        ?>
+    </select><br><br>
 
-                <button type="submit">Suivant</button>
-            </form>
+    <!-- Date Range Selection -->
+    <label for="date_from">Date de début :</label>
+    <input type="date" id="date_from" name="date_from" required><br><br>
+
+    <label for="date_to">Date de fin :</label>
+    <input type="date" id="date_to" name="date_to" required><br><br>
+
+    <!-- Existing Checkbox Group for Type de séance -->
+    <fieldset>
+        <legend>Type de séance * :</legend>
+        <div class="checkbox-group">
+            <div class="checkbox-item">
+                <input type="checkbox" id="cours" name="room-type[]" value="cours">
+                <label for="cours">Cours</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="td" name="room-type[]" value="TD">
+                <label for="td">TD</label>
+            </div>
+            <div class="checkbox-item">
+                <input type="checkbox" id="tp" name="room-type[]" value="TP">
+                <label for="tp">TP</label>
+            </div>
+            <!-- <div class="checkbox-item">
+                <input type="checkbox" id="controle" name="room-type[]" value="controle">
+                <label for="controle">Contrôle</label>
+            </div> -->
+            <div class="checkbox-item">
+                <input type="checkbox" id="soutenance" name="room-type[]" value="soutenance">
+                <label for="soutenance">Soutenance</label>
+            </div>
+            
+        </div>
+    </fieldset>
+
+    <button type="submit">Suivant</button>
+</form>
         </div>
     </div>
 </div>

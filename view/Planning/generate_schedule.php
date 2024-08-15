@@ -297,18 +297,45 @@ echo "</tbody>
     </table>
 </div>
 </div>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.2/jspdf.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js'></script>
 <script>
 function saveAsPDF() {
-    html2canvas(document.getElementById('schedule-content'), {
-        onrendered: function(canvas) {
-            var imgData = canvas.toDataURL('image/png');
-            var doc = new jsPDF('landscape');
-            doc.addImage(imgData, 'PNG', 20, 20, 255, 160);
-            doc.save('schedule.pdf');
-        }
-    });
+    const element = document.getElementById('schedule-content');
+    const opt = {
+        margin:[150, 0.5, 0.5, 0.5],
+        filename: 'schedule.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 3, scrollX: 0, scrollY: 0 },  // Increased scale for better quality
+        jsPDF: { unit: 'px', format: [1980, 1020], orientation: 'landscape' },  // Increased dimensions
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    const img = new Image();
+    img.src = '../../image/ENCG-BM_logo_header.png';
+    img.onload = function () {
+        html2pdf().from(element).set(opt).toPdf().get('pdf').then(function (pdf) {
+            pdf.addImage(img, 'PNG', 30, 30, 350, 100);
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const lines = [
+                'Université Sultan Moulay Slimane',
+                'École Nationale de Commerce et de Gestion',
+                'Beni Mellal'
+            ];
+
+            pdf.setFontSize(18);
+            pdf.setFont('helvetica', 'bold');
+
+            // Calculate the initial y position for the first line of text
+            let yPosition = 50;
+            lines.forEach((line) => {
+                pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += 25; // Adjust the spacing between lines
+            });
+
+            pdf.save(opt.filename);
+        });
+    };
 }
 </script>
 </body>
